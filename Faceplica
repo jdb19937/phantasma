@@ -1,0 +1,43 @@
+# Faceplica — aedificatio libphantasma.a (Darwin)
+#
+# Usus:
+#   face            — aedifica libphantasma.a
+#   face proba      — aedifica et curre probationem
+#   face purga      — dele omnia aedificata
+#
+# Nexus: -framework Cocoa
+
+CC       ?= cc
+AR       ?= ar
+CFLAGS   ?= -Wall -Wextra -O2
+CFLAGS_C ?= -Wall -Wextra -pedantic -std=c99 -O2
+
+FONTES_M     = phantasma_darwin.m
+FONTES_C     = pfr_gif.c pfr_mp4.c
+OBJECTA      = phantasma.o pfr_gif.o pfr_mp4.o
+BIBLIOTHECA  = libphantasma.a
+
+omnia: $(BIBLIOTHECA)
+
+phantasma.o: $(FONTES_M) phantasma.h
+	$(CC) $(CFLAGS) -c $(FONTES_M) -o phantasma.o
+
+pfr_gif.o: pfr_gif.c phantasma.h
+	$(CC) $(CFLAGS_C) -c pfr_gif.c -o pfr_gif.o
+
+pfr_mp4.o: pfr_mp4.c phantasma.h
+	$(CC) $(CFLAGS_C) -c pfr_mp4.c -o pfr_mp4.o
+
+$(BIBLIOTHECA): $(OBJECTA)
+	$(AR) rcs $(BIBLIOTHECA) $(OBJECTA)
+
+proba: $(BIBLIOTHECA) proba.o
+	$(CC) proba.o $(BIBLIOTHECA) -framework Cocoa -o proba
+
+proba.o: proba.c phantasma.h
+	$(CC) $(CFLAGS_C) -c proba.c -o proba.o
+
+purga:
+	rm -f $(OBJECTA) $(BIBLIOTHECA) proba.o proba
+
+.PHONY: omnia proba purga
