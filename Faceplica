@@ -1,43 +1,46 @@
-# Faceplica — aedificatio libphantasma.a (Darwin)
+# Faceplica — aedificatio libphantasma.a
 #
 # Usus:
-#   face            — aedifica libphantasma.a
-#   face proba      — aedifica et curre probationem
-#   face purga      — dele omnia aedificata
+#   face                                       — aedifica (autodetegit platformam)
+#   face CFLAGS="-Wall -Wextra -O2 -DPHANTASMA_X11"  — impera X11 in Darwin
+#   face proba                                 — aedifica et curre probationem
+#   face purga                                 — dele omnia aedificata
 #
-# Nexus: -framework Cocoa
+# Nexus: vide nexus_phantasma (generatur ab aedificatione)
 
 CC       ?= cc
 AR       ?= ar
 CFLAGS   ?= -Wall -Wextra -O2
-CFLAGS_C ?= -Wall -Wextra -pedantic -std=c99 -O2
 
-FONTES_M     = phantasma_darwin.m
-FONTES_C     = pfr_gif.c pfr_mp4.c
 OBJECTA      = phantasma.o pfr_gif.o pfr_mp4.o
 BIBLIOTHECA  = libphantasma.a
 
-omnia: $(BIBLIOTHECA)
+omnia: $(BIBLIOTHECA) nexus_phantasma
 
-phantasma.o: $(FONTES_M) phantasma.h
-	$(CC) $(CFLAGS) -c $(FONTES_M) -o phantasma.o
+phantasma.o: phantasma_plat.c phantasma_darwin.m phantasma_linux.c phantasma.h
+	$(CC) $(CFLAGS) `case $$(uname -s) in Darwin) echo "-x objective-c";; esac` -c phantasma_plat.c -o phantasma.o
 
 pfr_gif.o: pfr_gif.c phantasma.h
-	$(CC) $(CFLAGS_C) -c pfr_gif.c -o pfr_gif.o
+	$(CC) $(CFLAGS) -pedantic -std=c99 -c pfr_gif.c -o pfr_gif.o
 
 pfr_mp4.o: pfr_mp4.c phantasma.h
-	$(CC) $(CFLAGS_C) -c pfr_mp4.c -o pfr_mp4.o
+	$(CC) $(CFLAGS) -pedantic -std=c99 -c pfr_mp4.c -o pfr_mp4.o
 
 $(BIBLIOTHECA): $(OBJECTA)
 	$(AR) rcs $(BIBLIOTHECA) $(OBJECTA)
 
-proba: $(BIBLIOTHECA) proba.o
-	$(CC) proba.o $(BIBLIOTHECA) -framework Cocoa -o proba
+nexus_phantasma: $(BIBLIOTHECA)
+	@if echo '$(CFLAGS)' | grep -q PHANTASMA_X11; then echo "-lX11"; \
+	elif $(CC) -E -dM - </dev/null 2>/dev/null | grep -q __APPLE__; then echo "-framework Cocoa"; \
+	else echo "-lX11"; fi > nexus_phantasma
+
+proba: $(BIBLIOTHECA) nexus_phantasma proba.o
+	$(CC) proba.o $(BIBLIOTHECA) `cat nexus_phantasma` -o proba
 
 proba.o: proba.c phantasma.h
-	$(CC) $(CFLAGS_C) -c proba.c -o proba.o
+	$(CC) $(CFLAGS) -pedantic -std=c99 -c proba.c -o proba.o
 
 purga:
-	rm -f $(OBJECTA) $(BIBLIOTHECA) proba.o proba
+	rm -f $(OBJECTA) $(BIBLIOTHECA) nexus_phantasma proba.o proba
 
 .PHONY: omnia proba purga
