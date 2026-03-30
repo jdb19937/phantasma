@@ -73,9 +73,42 @@ static int capsa_magnitudo(const capsa_t *c)
     return db;
 }
 
+/*
+ * histogrammum colorum — RGB ad 5 bits per canalem truncat.
+ * 32×32×32 = 32768 cellae. unaquaque cella numerat pixelos
+ * et summas R/G/B servat. median-cut deinde histogrammo
+ * operatur, non pixelibus — ordo magnitudinis velocior.
+ */
+
+#define HIST_BITS  5
+#define HIST_DIM   (1 << HIST_BITS)   /* 32 */
+#define HIST_SHIFT (8 - HIST_BITS)    /* 3 */
+#define HIST_N     (HIST_DIM * HIST_DIM * HIST_DIM) /* 32768 */
+
+typedef struct {
+    int32_t numerus;
+    int64_t r_sum, g_sum, b_sum;
+} hist_cella_t;
+
 static void paletam_genera(const uint8_t *rgb, int n_pix,
                             uint8_t paleta[][3], int n_colorum)
 {
+    /* histogrammum aedifica */
+    hist_cella_t *hist = (hist_cella_t *)calloc(HIST_N, sizeof(hist_cella_t));
+
+    for (int i = 0; i < n_pix; i++) {
+        int r = rgb[i * 3 + 0];
+        int g = rgb[i * 3 + 1];
+        int b = rgb[i * 3 + 2];
+        int hi = (r >> HIST_SHIFT) * HIST_DIM * HIST_DIM +
+                 (g >> HIST_SHIFT) * HIST_DIM +
+                 (b >> HIST_SHIFT);
+        hist[hi].numerus++;
+        hist[hi].r_sum += r;
+        hist[hi].g_sum += g;
+        hist[hi].b_sum += b;
+    }
+
     /* capsas initia */
     capsa_t *capsae = (capsa_t *)calloc((size_t)n_colorum, sizeof(capsa_t));
     int n_capsarum = 1;
@@ -83,20 +116,29 @@ static void paletam_genera(const uint8_t *rgb, int n_pix,
     capsae[0].r_min = capsae[0].g_min = capsae[0].b_min = 255;
     capsae[0].r_max = capsae[0].g_max = capsae[0].b_max = 0;
 
-    /* limites primae capsae computa */
-    for (int i = 0; i < n_pix; i++) {
-        int r = rgb[i * 3 + 0];
-        int g = rgb[i * 3 + 1];
-        int b = rgb[i * 3 + 2];
-        if (r < capsae[0].r_min) capsae[0].r_min = r;
-        if (r > capsae[0].r_max) capsae[0].r_max = r;
-        if (g < capsae[0].g_min) capsae[0].g_min = g;
-        if (g > capsae[0].g_max) capsae[0].g_max = g;
-        if (b < capsae[0].b_min) capsae[0].b_min = b;
-        if (b > capsae[0].b_max) capsae[0].b_max = b;
-        capsae[0].r_sum += r;
-        capsae[0].g_sum += g;
-        capsae[0].b_sum += b;
+    /* limites primae capsae ex histogrammo computa */
+    for (int ri = 0; ri < HIST_DIM; ri++) {
+        for (int gi = 0; gi < HIST_DIM; gi++) {
+            for (int bi = 0; bi < HIST_DIM; bi++) {
+                int hi = ri * HIST_DIM * HIST_DIM + gi * HIST_DIM + bi;
+                if (hist[hi].numerus == 0) continue;
+                int r = ri << HIST_SHIFT;
+                int g = gi << HIST_SHIFT;
+                int b = bi << HIST_SHIFT;
+                if (r < capsae[0].r_min) capsae[0].r_min = r;
+                if ((r + (1 << HIST_SHIFT) - 1) > capsae[0].r_max)
+                    capsae[0].r_max = r + (1 << HIST_SHIFT) - 1;
+                if (g < capsae[0].g_min) capsae[0].g_min = g;
+                if ((g + (1 << HIST_SHIFT) - 1) > capsae[0].g_max)
+                    capsae[0].g_max = g + (1 << HIST_SHIFT) - 1;
+                if (b < capsae[0].b_min) capsae[0].b_min = b;
+                if ((b + (1 << HIST_SHIFT) - 1) > capsae[0].b_max)
+                    capsae[0].b_max = b + (1 << HIST_SHIFT) - 1;
+                capsae[0].r_sum += hist[hi].r_sum;
+                capsae[0].g_sum += hist[hi].g_sum;
+                capsae[0].b_sum += hist[hi].b_sum;
+            }
+        }
     }
     capsae[0].numerus = n_pix;
 
@@ -119,35 +161,53 @@ static void paletam_genera(const uint8_t *rgb, int n_pix,
         else if (dim == 1) medio = (capsae[optima].g_min + capsae[optima].g_max) / 2;
         else medio = (capsae[optima].b_min + capsae[optima].b_max) / 2;
 
-        /* crea duas novas capsas ex pixelibus */
+        /* percurre histogrammum intra limites capsae */
         capsa_t lo = {255, 0, 255, 0, 255, 0, 0, 0, 0, 0};
-        capsa_t hi = {255, 0, 255, 0, 255, 0, 0, 0, 0, 0};
+        capsa_t hi_box = {255, 0, 255, 0, 255, 0, 0, 0, 0, 0};
 
-        for (int i = 0; i < n_pix; i++) {
-            int r = rgb[i * 3 + 0];
-            int g = rgb[i * 3 + 1];
-            int b = rgb[i * 3 + 2];
-            int v = (dim == 0) ? r : (dim == 1) ? g : b;
+        int ri_min = capsae[optima].r_min >> HIST_SHIFT;
+        int ri_max = capsae[optima].r_max >> HIST_SHIFT;
+        int gi_min = capsae[optima].g_min >> HIST_SHIFT;
+        int gi_max = capsae[optima].g_max >> HIST_SHIFT;
+        int bi_min = capsae[optima].b_min >> HIST_SHIFT;
+        int bi_max = capsae[optima].b_max >> HIST_SHIFT;
+        if (ri_max >= HIST_DIM) ri_max = HIST_DIM - 1;
+        if (gi_max >= HIST_DIM) gi_max = HIST_DIM - 1;
+        if (bi_max >= HIST_DIM) bi_max = HIST_DIM - 1;
 
-            /* est in capsa originali? */
-            if (r < capsae[optima].r_min || r > capsae[optima].r_max) continue;
-            if (g < capsae[optima].g_min || g > capsae[optima].g_max) continue;
-            if (b < capsae[optima].b_min || b > capsae[optima].b_max) continue;
+        for (int ri = ri_min; ri <= ri_max; ri++) {
+            for (int gi = gi_min; gi <= gi_max; gi++) {
+                for (int bi = bi_min; bi <= bi_max; bi++) {
+                    int idx = ri * HIST_DIM * HIST_DIM + gi * HIST_DIM + bi;
+                    if (hist[idx].numerus == 0) continue;
 
-            capsa_t *dest = (v <= medio) ? &lo : &hi;
-            if (r < dest->r_min) dest->r_min = r;
-            if (r > dest->r_max) dest->r_max = r;
-            if (g < dest->g_min) dest->g_min = g;
-            if (g > dest->g_max) dest->g_max = g;
-            if (b < dest->b_min) dest->b_min = b;
-            if (b > dest->b_max) dest->b_max = b;
-            dest->r_sum += r;
-            dest->g_sum += g;
-            dest->b_sum += b;
-            dest->numerus++;
+                    int r = ri << HIST_SHIFT;
+                    int g = gi << HIST_SHIFT;
+                    int b = bi << HIST_SHIFT;
+                    int v = (dim == 0) ? r : (dim == 1) ? g : b;
+
+                    capsa_t *dest = (v <= medio) ? &lo : &hi_box;
+                    int r_lo = ri << HIST_SHIFT;
+                    int r_hi = r_lo + (1 << HIST_SHIFT) - 1;
+                    int g_lo = gi << HIST_SHIFT;
+                    int g_hi = g_lo + (1 << HIST_SHIFT) - 1;
+                    int b_lo = bi << HIST_SHIFT;
+                    int b_hi = b_lo + (1 << HIST_SHIFT) - 1;
+                    if (r_lo < dest->r_min) dest->r_min = r_lo;
+                    if (r_hi > dest->r_max) dest->r_max = r_hi;
+                    if (g_lo < dest->g_min) dest->g_min = g_lo;
+                    if (g_hi > dest->g_max) dest->g_max = g_hi;
+                    if (b_lo < dest->b_min) dest->b_min = b_lo;
+                    if (b_hi > dest->b_max) dest->b_max = b_hi;
+                    dest->r_sum += hist[idx].r_sum;
+                    dest->g_sum += hist[idx].g_sum;
+                    dest->b_sum += hist[idx].b_sum;
+                    dest->numerus += hist[idx].numerus;
+                }
+            }
         }
 
-        if (lo.numerus == 0 || hi.numerus == 0) {
+        if (lo.numerus == 0 || hi_box.numerus == 0) {
             /* non potest scindere — signa ut non scindibilem */
             capsae[optima].r_min = capsae[optima].r_max;
             capsae[optima].g_min = capsae[optima].g_max;
@@ -156,7 +216,7 @@ static void paletam_genera(const uint8_t *rgb, int n_pix,
         }
 
         capsae[optima] = lo;
-        capsae[n_capsarum] = hi;
+        capsae[n_capsarum] = hi_box;
         n_capsarum++;
     }
 
@@ -172,6 +232,7 @@ static void paletam_genera(const uint8_t *rgb, int n_pix,
     }
 
     free(capsae);
+    free(hist);
 }
 
 /* ================================================================
@@ -202,6 +263,42 @@ static int indicem_proximum(const uint8_t paleta[][3], int n,
         if (dist < min_dist) { min_dist = dist; optimus = i; }
     }
     return optimus;
+}
+
+/* ================================================================
+ * tabula quaesitionis colorum — 32×32×32 (32KB)
+ *
+ * colores RGB ad 5 bits truncat, indicem paletae recondit.
+ * primam quaesitionem lentam facit, repetitas velocissimas.
+ * ================================================================ */
+
+#define CELER_BITS  5
+#define CELER_MAG   (1 << CELER_BITS)   /* 32 */
+#define CELER_SHIFT (8 - CELER_BITS)    /* 3 */
+
+typedef struct {
+    uint8_t indices[CELER_MAG][CELER_MAG][CELER_MAG];
+    uint8_t repleta[CELER_MAG][CELER_MAG][CELER_MAG];
+} celer_tabula_t;
+
+static void celer_initia(celer_tabula_t *ct)
+{
+    memset(ct->repleta, 0, sizeof(ct->repleta));
+}
+
+static int celer_quaere(celer_tabula_t *ct, const uint8_t paleta[][3],
+                         int n, int r, int g, int b)
+{
+    int ri = r >> CELER_SHIFT;
+    int gi = g >> CELER_SHIFT;
+    int bi = b >> CELER_SHIFT;
+    if (ct->repleta[ri][gi][bi])
+        return ct->indices[ri][gi][bi];
+
+    int idx = indicem_proximum(paleta, n, r, g, b);
+    ct->indices[ri][gi][bi] = (uint8_t)idx;
+    ct->repleta[ri][gi][bi] = 1;
+    return idx;
 }
 
 /* ================================================================
@@ -259,6 +356,7 @@ static void lzw_codicem_emitte(lzw_t *s, int codex)
 static void lzw_dict_purga(lzw_t *s)
 {
     memset(s->hash_praef, -1, sizeof(s->hash_praef));
+    memset(s->hash_codex, -1, sizeof(s->hash_codex));
     s->prox_codex = s->cod_finis + 1;
     s->mag_codis  = LZW_MIN_MAG + 1;
 }
@@ -456,6 +554,10 @@ int pfr_gif_tabulam_adde(pfr_gif_t *g, const uint32_t *pixels)
     uint8_t *indices = (uint8_t *)malloc((size_t)n_pix);
     if (!indices) { free(rgb); return -1; }
 
+    celer_tabula_t *ct = (celer_tabula_t *)malloc(sizeof(celer_tabula_t));
+    if (!ct) { free(indices); free(rgb); return -1; }
+    celer_initia(ct);
+
     for (int y = 0; y < g->alt; y++) {
         for (int x = 0; x < g->lat; x++) {
             int idx = (y * g->lat + x) * 3;
@@ -467,10 +569,12 @@ int pfr_gif_tabulam_adde(pfr_gif_t *g, const uint32_t *pixels)
             if (r < 0) r = 0; if (r > 255) r = 255;
             if (gv < 0) gv = 0; if (gv > 255) gv = 255;
             if (b < 0) b = 0; if (b > 255) b = 255;
-            indices[y * g->lat + x] = (uint8_t)indicem_proximum(
-                g->paleta, PALETA_MAG, r, gv, b);
+            indices[y * g->lat + x] = (uint8_t)celer_quaere(
+                ct, g->paleta, PALETA_MAG, r, gv, b);
         }
     }
+
+    free(ct);
 
     free(rgb);
 
