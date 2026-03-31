@@ -1,19 +1,22 @@
 # Faceplica — aedificatio libphantasma.a
 #
 # Usus:
-#   face                                       — aedifica (autodetegit platformam)
-#   face CFLAGS="-Wall -Wextra -O2 -DPHANTASMA_X11"  — impera X11 in Darwin
-#   face proba                                 — aedifica et curre probationem
-#   face purga                                 — dele omnia aedificata
+#   face                  — aedifica (autodetegit platformam)
+#   face proba            — aedifica et curre probationem
+#   face proba_computo    — aedifica et curre probationes computationis
+#   face purga            — dele omnia aedificata
 #
 # Nexus: vide nexus_phantasma (generatur ab aedificatione)
+#
+# CUDA: si nvcc invenitur, pfr_computo.o ex pfr_computo_cuda.cu compilatur;
+#       alioquin pfr_computo_plat.c adhibetur (Metal in Darwin, CPU in Linux).
 
-CC       ?= cc
-AR       ?= ar
-CFLAGS   ?= -Wall -Wextra -O2
+CC      ?= cc
+AR      ?= ar
+CFLAGS  ?= -Wall -Wextra -O2
 
-OBJECTA      = phantasma.o pfr_gif.o pfr_mp4.o
-BIBLIOTHECA  = libphantasma.a
+OBJECTA     = phantasma.o pfr_gif.o pfr_mp4.o pfr_computo.o
+BIBLIOTHECA = libphantasma.a
 
 omnia: $(BIBLIOTHECA) nexus_phantasma
 
@@ -26,19 +29,31 @@ pfr_gif.o: pfr_gif.c phantasma.h
 pfr_mp4.o: pfr_mp4.c phantasma.h
 	$(CC) $(CFLAGS) -pedantic -std=c99 -c pfr_mp4.c -o pfr_mp4.o
 
+pfr_computo.o: pfr_computo_plat.c pfr_computo_metal.m pfr_computo_cpu.c pfr_computo_cuda.cu pfr_computo.h
+	if which nvcc >/dev/null 2>&1; then \
+	    nvcc -O2 -c pfr_computo_cuda.cu -o pfr_computo.o; \
+	else \
+	    $(CC) $(CFLAGS) `case $$(uname -s) in Darwin) echo "-x objective-c";; esac` -c pfr_computo_plat.c -o pfr_computo.o; \
+	fi
+
 $(BIBLIOTHECA): $(OBJECTA)
 	$(AR) rcs $(BIBLIOTHECA) $(OBJECTA)
 
 nexus_phantasma: $(BIBLIOTHECA)
-	@if echo '$(CFLAGS)' | grep -q PHANTASMA_X11; then echo "-lX11"; \
-	elif $(CC) -E -dM - </dev/null 2>/dev/null | grep -q __APPLE__; then echo "-framework Cocoa"; \
-	else echo "-lX11"; fi > nexus_phantasma
+	@CC='$(CC)' CFLAGS='$(CFLAGS)' sh nexus_genera.sh > nexus_phantasma
 
 proba: $(BIBLIOTHECA) nexus_phantasma proba.o
 	$(CC) proba.o $(BIBLIOTHECA) `cat nexus_phantasma` -o proba
 
 proba.o: proba.c phantasma.h
 	$(CC) $(CFLAGS) -pedantic -std=c99 -c proba.c -o proba.o
+
+proba_computo: $(BIBLIOTHECA) nexus_phantasma proba_computo.o
+	$(CC) proba_computo.o $(BIBLIOTHECA) `cat nexus_phantasma` -lm -o proba_computo
+	./proba_computo
+
+proba_computo.o: proba_computo.c pfr_computo.h
+	$(CC) $(CFLAGS) -pedantic -std=c99 -c proba_computo.c -o proba_computo.o
 
 proba_mp4: pfr_mp4.o proba_mp4.o
 	$(CC) proba_mp4.o pfr_mp4.o -o proba_mp4
@@ -53,6 +68,8 @@ proba_gif.o: proba_gif.c phantasma.h
 	$(CC) $(CFLAGS) -pedantic -std=c99 -c proba_gif.c -o proba_gif.o
 
 purga:
-	rm -f $(OBJECTA) $(BIBLIOTHECA) nexus_phantasma proba.o proba proba_mp4.o proba_mp4 proba_gif.o proba_gif
+	rm -f $(OBJECTA) $(BIBLIOTHECA) nexus_phantasma \
+	    proba.o proba proba_computo.o proba_computo \
+	    proba_mp4.o proba_mp4 proba_gif.o proba_gif
 
-.PHONY: omnia proba proba_mp4 proba_gif purga
+.PHONY: omnia proba proba_computo proba_mp4 proba_gif purga
