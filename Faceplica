@@ -6,6 +6,7 @@
 #   face proba_computo    — aedifica et curre probationes computationis
 #   face proba_mp4        — aedifica et curre probationes mp4
 #   face proba_gif        — aedifica et curre probationes gif
+#   face proba_nn         — benchmark primitiva neuralium retium GPU vs CPU
 #   face purga            — dele omnia aedificata
 #
 # Nexus: vide nexus_phantasma (generatur ab aedificatione)
@@ -73,9 +74,17 @@ proba_gif: gif.o proba_gif.o
 proba_gif.o: proba_gif.c $(CAPITA)
 	$(CC) $(CFLAGS) -pedantic -std=c99 -c proba_gif.c -o proba_gif.o
 
+proba_nn: $(BIBLIOTHECA) nexus_phantasma proba_nn.o
+	$(CC) proba_nn.o $(BIBLIOTHECA) `cat nexus_phantasma` -lm -o proba_nn
+	./proba_nn
+
+proba_nn.o: proba_nn.c $(CAPITA)
+	$(CC) $(CFLAGS) -pedantic -std=c99 -c proba_nn.c -o proba_nn.o
+
 purga:
 	rm -f $(OBJECTA) $(BIBLIOTHECA) nexus_phantasma \
 	    proba.o proba proba_computo.o proba_computo \
-	    proba_mp4.o proba_mp4 proba_gif.o proba_gif
+	    proba_mp4.o proba_mp4 proba_gif.o proba_gif \
+	    proba_nn.o proba_nn
 
-.PHONY: omnia proba proba_computo proba_mp4 proba_gif purga
+.PHONY: omnia proba proba_computo proba_mp4 proba_gif proba_nn purga
