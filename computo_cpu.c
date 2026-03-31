@@ -86,6 +86,39 @@ int pfr_cpu_axpy_f(pfr_vector_f_t *y, float alpha, const pfr_vector_f_t *x)
 }
 
 /* ================================================================
+ * GEMV^T: y = A^T * x (float)
+ * ================================================================ */
+
+int pfr_cpu_matvec_trans_f(pfr_vector_f_t *y,
+                           const pfr_matrix_f_t *a, const pfr_vector_f_t *x)
+{
+    if (!y || !a || !x) return -1;
+    if (a->m != x->n || y->n != a->n) return -1;
+    int m = a->m, n = a->n;
+    for (int j = 0; j < n; j++) y->data[j] = 0.0f;
+    for (int i = 0; i < m; i++)
+        for (int j = 0; j < n; j++)
+            y->data[j] += a->data[i*n + j] * x->data[i];
+    return 0;
+}
+
+/* ================================================================
+ * GER: A += alpha * x * y^T (float)
+ * ================================================================ */
+
+int pfr_cpu_ger_f(pfr_matrix_f_t *a, float alpha,
+                  const pfr_vector_f_t *x, const pfr_vector_f_t *y)
+{
+    if (!a || !x || !y) return -1;
+    if (a->m != x->n || a->n != y->n) return -1;
+    int m = a->m, n = a->n;
+    for (int i = 0; i < m; i++)
+        for (int j = 0; j < n; j++)
+            a->data[i*n + j] += alpha * x->data[i] * y->data[j];
+    return 0;
+}
+
+/* ================================================================
  * GEMM: C = A * B (double)
  * ================================================================ */
 

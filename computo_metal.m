@@ -102,18 +102,53 @@ static const char *fons_msl =
     "    uint gid [[thread_position_in_grid]])\n"
     "{\n"
     "    if ((int)gid < n) y[gid] += alpha * x[gid];\n"
+    "}\n"
+    "\n"
+    "/* GEMV^T: y[j] = sum_i A[i*n+j] * x[i] */\n"
+    "kernel void kern_matvec_trans(\n"
+    "    device const float* A [[buffer(0)]],\n"
+    "    device const float* x [[buffer(1)]],\n"
+    "    device       float* y [[buffer(2)]],\n"
+    "    constant int&       m [[buffer(3)]],\n"
+    "    constant int&       n [[buffer(4)]],\n"
+    "    uint gid [[thread_position_in_grid]])\n"
+    "{\n"
+    "    int j = (int)gid;\n"
+    "    if (j >= n) return;\n"
+    "    float s = 0.0;\n"
+    "    for (int i = 0; i < m; i++)\n"
+    "        s += A[i * n + j] * x[i];\n"
+    "    y[j] = s;\n"
+    "}\n"
+    "\n"
+    "/* GER: A[i*n+j] += alpha * x[i] * y[j] */\n"
+    "kernel void kern_ger(\n"
+    "    device       float* A     [[buffer(0)]],\n"
+    "    constant   float&   alpha [[buffer(1)]],\n"
+    "    device const float* x     [[buffer(2)]],\n"
+    "    device const float* y     [[buffer(3)]],\n"
+    "    constant int&       m     [[buffer(4)]],\n"
+    "    constant int&       n     [[buffer(5)]],\n"
+    "    uint gid [[thread_position_in_grid]])\n"
+    "{\n"
+    "    int ij = (int)gid;\n"
+    "    int i = ij / n, j = ij % n;\n"
+    "    if (i >= m) return;\n"
+    "    A[ij] += alpha * x[i] * y[j];\n"
     "}\n";
 
 /* ================================================================
  * status globalis
  * ================================================================ */
 
-#define MC_MATMAT  0
-#define MC_MATVEC  1
-#define MC_DOTUM   2
-#define MC_SCALARE 3
-#define MC_AXPY    4
-#define MC_N_PLENA 5
+#define MC_MATMAT       0
+#define MC_MATVEC       1
+#define MC_DOTUM        2
+#define MC_SCALARE      3
+#define MC_AXPY         4
+#define MC_MATVEC_TRANS 5
+#define MC_GER          6
+#define MC_N_PLENA      7
 
 static struct {
     id<MTLDevice>               machina;
@@ -183,7 +218,8 @@ int pfr_computo_initia(void)
 
         static const char *nomina[MC_N_PLENA] = {
             "kern_matmat", "kern_matvec", "kern_dotum",
-            "kern_scalare", "kern_axpy"
+            "kern_scalare", "kern_axpy",
+            "kern_matvec_trans", "kern_ger"
         };
         int ok = 1;
         for (int i = 0; i < MC_N_PLENA; i++) {
@@ -504,6 +540,53 @@ static int metal_axpy(pfr_vector_f_t *y, float alpha, const pfr_vector_f_t *x)
     return 0;
 }
 
+static int metal_matvec_trans(pfr_vector_f_t *y,
+                              const pfr_matrix_f_t *a, const pfr_vector_f_t *x)
+{
+    int m = a->m, n = a->n;
+    @autoreleasepool {
+        id<MTLCommandBuffer>         cb  = [mc.coda commandBuffer];
+        id<MTLComputeCommandEncoder> enc = [cb computeCommandEncoder];
+        [enc setComputePipelineState:mc.plena[MC_MATVEC_TRANS]];
+        [enc setBuffer:mc_id_buffer(a->gpu) offset:0 atIndex:0];
+        [enc setBuffer:mc_id_buffer(x->gpu) offset:0 atIndex:1];
+        [enc setBuffer:mc_id_buffer(y->gpu) offset:0 atIndex:2];
+        [enc setBytes:&m length:sizeof(int) atIndex:3];
+        [enc setBytes:&n length:sizeof(int) atIndex:4];
+        NSUInteger tgs = 256;
+        MTLSize t = MTLSizeMake(tgs, 1, 1);
+        MTLSize g = MTLSizeMake(((size_t)n+tgs-1)/tgs, 1, 1);
+        [enc dispatchThreadgroups:g threadsPerThreadgroup:t];
+        [enc endEncoding];
+        mc_exsequere(cb);
+    }
+    return 0;
+}
+
+static int metal_ger(pfr_matrix_f_t *a, float alpha,
+                     const pfr_vector_f_t *x, const pfr_vector_f_t *y)
+{
+    int m = a->m, n = a->n;
+    @autoreleasepool {
+        id<MTLCommandBuffer>         cb  = [mc.coda commandBuffer];
+        id<MTLComputeCommandEncoder> enc = [cb computeCommandEncoder];
+        [enc setComputePipelineState:mc.plena[MC_GER]];
+        [enc setBuffer:mc_id_buffer(a->gpu) offset:0 atIndex:0];
+        [enc setBytes:&alpha length:sizeof(float) atIndex:1];
+        [enc setBuffer:mc_id_buffer(x->gpu) offset:0 atIndex:2];
+        [enc setBuffer:mc_id_buffer(y->gpu) offset:0 atIndex:3];
+        [enc setBytes:&m length:sizeof(int) atIndex:4];
+        [enc setBytes:&n length:sizeof(int) atIndex:5];
+        NSUInteger tgs = 256;
+        MTLSize t = MTLSizeMake(tgs, 1, 1);
+        MTLSize g = MTLSizeMake(((size_t)m*n+tgs-1)/tgs, 1, 1);
+        [enc dispatchThreadgroups:g threadsPerThreadgroup:t];
+        [enc endEncoding];
+        mc_exsequere(cb);
+    }
+    return 0;
+}
+
 /* ================================================================
  * pfr_*_f — conatur GPU; cadit ad CPU si non adest
  * ================================================================ */
@@ -548,6 +631,26 @@ int pfr_axpy_f(pfr_vector_f_t *y, float alpha, const pfr_vector_f_t *x)
     if (!y || !x || y->n != x->n) return -1;
     if (!mc.usar_gpu || !y->gpu || !x->gpu) return pfr_cpu_axpy_f(y, alpha, x);
     return metal_axpy(y, alpha, x);
+}
+
+int pfr_matvec_trans_f(pfr_vector_f_t *y,
+                       const pfr_matrix_f_t *a, const pfr_vector_f_t *x)
+{
+    if (!y || !a || !x) return -1;
+    if (a->m != x->n || y->n != a->n) return -1;
+    if (!mc.usar_gpu || !a->gpu || !x->gpu || !y->gpu)
+        return pfr_cpu_matvec_trans_f(y, a, x);
+    return metal_matvec_trans(y, a, x);
+}
+
+int pfr_ger_f(pfr_matrix_f_t *a, float alpha,
+              const pfr_vector_f_t *x, const pfr_vector_f_t *y)
+{
+    if (!a || !x || !y) return -1;
+    if (a->m != x->n || a->n != y->n) return -1;
+    if (!mc.usar_gpu || !a->gpu || !x->gpu || !y->gpu)
+        return pfr_cpu_ger_f(a, alpha, x, y);
+    return metal_ger(a, alpha, x, y);
 }
 
 /* ================================================================
@@ -613,6 +716,24 @@ int pfr_gpu_axpy_f(pfr_vector_f_t *y, float alpha, const pfr_vector_f_t *x)
     if (!y || !x || y->n != x->n) return -1;
     if (!mc.usar_gpu || !y->gpu || !x->gpu) return -1;
     return metal_axpy(y, alpha, x);
+}
+
+int pfr_gpu_matvec_trans_f(pfr_vector_f_t *y,
+                           const pfr_matrix_f_t *a, const pfr_vector_f_t *x)
+{
+    if (!y || !a || !x) return -1;
+    if (a->m != x->n || y->n != a->n) return -1;
+    if (!mc.usar_gpu || !a->gpu || !x->gpu || !y->gpu) return -1;
+    return metal_matvec_trans(y, a, x);
+}
+
+int pfr_gpu_ger_f(pfr_matrix_f_t *a, float alpha,
+                  const pfr_vector_f_t *x, const pfr_vector_f_t *y)
+{
+    if (!a || !x || !y) return -1;
+    if (a->m != x->n || a->n != y->n) return -1;
+    if (!mc.usar_gpu || !a->gpu || !x->gpu || !y->gpu) return -1;
+    return metal_ger(a, alpha, x, y);
 }
 
 /* gpu_*_d — semper fallit: Metal non sustinet double in GPU */

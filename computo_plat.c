@@ -130,6 +130,14 @@ int pfr_scalare_f(pfr_vector_f_t *x, float alpha)
 int pfr_axpy_f(pfr_vector_f_t *y, float alpha, const pfr_vector_f_t *x)
 { return pfr_cpu_axpy_f(y, alpha, x); }
 
+int pfr_matvec_trans_f(pfr_vector_f_t *y,
+                       const pfr_matrix_f_t *a, const pfr_vector_f_t *x)
+{ return pfr_cpu_matvec_trans_f(y, a, x); }
+
+int pfr_ger_f(pfr_matrix_f_t *a, float alpha,
+              const pfr_vector_f_t *x, const pfr_vector_f_t *y)
+{ return pfr_cpu_ger_f(a, alpha, x, y); }
+
 int pfr_matmat_d(pfr_matrix_d_t *c,
                  const pfr_matrix_d_t *a, const pfr_matrix_d_t *b)
 { return pfr_cpu_matmat_d(c, a, b); }
@@ -166,6 +174,14 @@ int pfr_gpu_scalare_f(pfr_vector_f_t *x, float alpha)
 
 int pfr_gpu_axpy_f(pfr_vector_f_t *y, float alpha, const pfr_vector_f_t *x)
 { (void)y; (void)alpha; (void)x; return -1; }
+
+int pfr_gpu_matvec_trans_f(pfr_vector_f_t *y,
+                           const pfr_matrix_f_t *a, const pfr_vector_f_t *x)
+{ (void)y; (void)a; (void)x; return -1; }
+
+int pfr_gpu_ger_f(pfr_matrix_f_t *a, float alpha,
+                  const pfr_vector_f_t *x, const pfr_vector_f_t *y)
+{ (void)a; (void)alpha; (void)x; (void)y; return -1; }
 
 int pfr_gpu_matmat_d(pfr_matrix_d_t *c,
                      const pfr_matrix_d_t *a, const pfr_matrix_d_t *b)

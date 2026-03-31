@@ -118,6 +118,14 @@ int pfr_scalare_f(pfr_vector_f_t *x, float alpha);
 /* y = alpha * x + y  (AXPY) */
 int pfr_axpy_f(pfr_vector_f_t *y, float alpha, const pfr_vector_f_t *x);
 
+/* y = A^T * x  (GEMV transpose: y[j] = sum_i A[i,j] * x[i]) */
+int pfr_matvec_trans_f(pfr_vector_f_t *y,
+                       const pfr_matrix_f_t *a, const pfr_vector_f_t *x);
+
+/* A += alpha * x * y^T  (GER: A[i,j] += alpha * x[i] * y[j]) */
+int pfr_ger_f(pfr_matrix_f_t *a, float alpha,
+              const pfr_vector_f_t *x, const pfr_vector_f_t *y);
+
 /* ================================================================
  * operationes (double)
  * ================================================================ */
@@ -152,6 +160,10 @@ int pfr_gpu_dotum_f(float *res,
                     const pfr_vector_f_t *x, const pfr_vector_f_t *y);
 int pfr_gpu_scalare_f(pfr_vector_f_t *x, float alpha);
 int pfr_gpu_axpy_f(pfr_vector_f_t *y, float alpha, const pfr_vector_f_t *x);
+int pfr_gpu_matvec_trans_f(pfr_vector_f_t *y,
+                           const pfr_matrix_f_t *a, const pfr_vector_f_t *x);
+int pfr_gpu_ger_f(pfr_matrix_f_t *a, float alpha,
+                  const pfr_vector_f_t *x, const pfr_vector_f_t *y);
 
 /* ================================================================
  * pfr_gpu_* double — fallit (-1) si GPU non adest vel data non in GPU
@@ -178,6 +190,10 @@ int pfr_cpu_dotum_f(float *res,
                     const pfr_vector_f_t *x, const pfr_vector_f_t *y);
 int pfr_cpu_scalare_f(pfr_vector_f_t *x, float alpha);
 int pfr_cpu_axpy_f(pfr_vector_f_t *y, float alpha, const pfr_vector_f_t *x);
+int pfr_cpu_matvec_trans_f(pfr_vector_f_t *y,
+                           const pfr_matrix_f_t *a, const pfr_vector_f_t *x);
+int pfr_cpu_ger_f(pfr_matrix_f_t *a, float alpha,
+                  const pfr_vector_f_t *x, const pfr_vector_f_t *y);
 
 /* ================================================================
  * pfr_cpu_* double — semper in CPU, data non in GPU requiritur
