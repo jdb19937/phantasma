@@ -1,10 +1,10 @@
 /*
- * pfr_computo_metal.m — computatio Metal (Darwin)
+ * computo_metal.m — computatio Metal (Darwin)
  * ==================================================
  *
- * Includ. ab pfr_computo_plat.c (ut Objective-C compilatur).
- * Parens iam inclusit: pfr_computo.h, <stdlib.h>, <string.h>,
- * pfr_computo_cpu.c (pfr_cpu_* functiones staticae).
+ * Includ. ab computo_plat.c (ut Objective-C compilatur).
+ * Parens iam inclusit: computo.h, <stdlib.h>, <string.h>,
+ * computo_cpu.c (pfr_cpu_* functiones staticae).
  *
  * Tempore cursus: si MTLCreateSystemDefaultDevice() reddit nil
  * vel compilatio MSL fallit, usar_gpu = 0 et omnes operationes

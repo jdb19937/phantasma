@@ -1,8 +1,8 @@
 /*
- * pfr_computo_cuda.cu — computatio CUDA (Linux)
+ * computo_cuda.cu — computatio CUDA (Linux)
  * ================================================
  *
- * Compilatur per nvcc directe pro pfr_computo.o.
+ * Compilatur per nvcc directe pro computo.o.
  * Si nulla machina CUDA invenitur in initio, usar_gpu = 0
  * et omnes operationes ad pfr_cpu_* cadunt.
  */
@@ -11,11 +11,11 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "pfr_computo.h"
+#include "computo.h"
 
 /* CPU fallback — nexu C ut nomina non deturpentur */
 extern "C" {
-#include "pfr_computo_cpu.c"
+#include "computo_cpu.c"
 }
 
 /* ================================================================

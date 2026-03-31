@@ -8,14 +8,14 @@
 #
 # Nexus: vide nexus_phantasma (generatur ab aedificatione)
 #
-# CUDA: si nvcc invenitur, pfr_computo.o ex pfr_computo_cuda.cu compilatur;
-#       alioquin pfr_computo_plat.c adhibetur (Metal in Darwin, CPU in Linux).
+# CUDA: si nvcc invenitur, computo.o ex computo_cuda.cu compilatur;
+#       alioquin computo_plat.c adhibetur (Metal in Darwin, CPU in Linux).
 
 CC      ?= cc
 AR      ?= ar
 CFLAGS  ?= -Wall -Wextra -O2
 
-OBJECTA     = phantasma.o pfr_gif.o pfr_mp4.o pfr_computo.o
+OBJECTA     = phantasma.o pfr_gif.o pfr_mp4.o computo.o
 BIBLIOTHECA = libphantasma.a
 
 omnia: $(BIBLIOTHECA) nexus_phantasma
@@ -29,11 +29,11 @@ pfr_gif.o: pfr_gif.c phantasma.h
 pfr_mp4.o: pfr_mp4.c phantasma.h
 	$(CC) $(CFLAGS) -pedantic -std=c99 -c pfr_mp4.c -o pfr_mp4.o
 
-pfr_computo.o: pfr_computo_plat.c pfr_computo_metal.m pfr_computo_cpu.c pfr_computo_cuda.cu pfr_computo.h
+computo.o: computo_plat.c computo_metal.m computo_cpu.c computo_cuda.cu computo.h
 	if which nvcc >/dev/null 2>&1; then \
-	    nvcc -O2 -c pfr_computo_cuda.cu -o pfr_computo.o; \
+	    nvcc -O2 -c computo_cuda.cu -o computo.o; \
 	else \
-	    $(CC) $(CFLAGS) `case $$(uname -s) in Darwin) echo "-x objective-c";; esac` -c pfr_computo_plat.c -o pfr_computo.o; \
+	    $(CC) $(CFLAGS) `case $$(uname -s) in Darwin) echo "-x objective-c";; esac` -c computo_plat.c -o computo.o; \
 	fi
 
 $(BIBLIOTHECA): $(OBJECTA)
@@ -52,7 +52,7 @@ proba_computo: $(BIBLIOTHECA) nexus_phantasma proba_computo.o
 	$(CC) proba_computo.o $(BIBLIOTHECA) `cat nexus_phantasma` -lm -o proba_computo
 	./proba_computo
 
-proba_computo.o: proba_computo.c pfr_computo.h
+proba_computo.o: proba_computo.c computo.h
 	$(CC) $(CFLAGS) -pedantic -std=c99 -c proba_computo.c -o proba_computo.o
 
 proba_mp4: pfr_mp4.o proba_mp4.o

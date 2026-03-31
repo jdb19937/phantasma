@@ -1,24 +1,24 @@
 /*
- * pfr_computo_plat.c — dispatch computationis platformae
+ * computo_plat.c — dispatch computationis platformae
  * ========================================================
  *
  * Defini PFR_COMPUTO_CPU ut CPU tantum adhibeas.
  * In Linux sine CUDA: CPU semper.
  * In Darwin: Metal temptatur; si non adest, CPU fallback.
- * In Linux cum CUDA: pfr_computo_cuda.cu directe compilatur pro
- * pfr_computo.o — hic plica non adhibetur.
+ * In Linux cum CUDA: computo_cuda.cu directe compilatur pro
+ * computo.o — hic plica non adhibetur.
  */
 
 #include <stdlib.h>
 #include <string.h>
 
-#include "pfr_computo.h"
+#include "computo.h"
 
 /* CPU fallback: semper includitur */
-#include "pfr_computo_cpu.c"
+#include "computo_cpu.c"
 
 #if defined(__APPLE__) && !defined(PHANTASMA_X11) && !defined(PFR_COMPUTO_CPU)
-#include "pfr_computo_metal.m"
+#include "computo_metal.m"
 #else
 
 /* ================================================================

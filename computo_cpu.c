@@ -2,9 +2,9 @@
  * pfr_computo_cpu.c — operationes BLAS in CPU
  * ==============================================
  *
- * Functiones pfr_cpu_* — includuntur ab pfr_computo_plat.c
- * et pfr_computo_cuda.cu.  Non compilatur seorsum.
- * Parens plica debet includere pfr_computo.h et <stdlib.h>.
+ * Functiones pfr_cpu_* — includuntur ab computo_plat.c
+ * et computo_cuda.cu.  Non compilatur seorsum.
+ * Parens plica debet includere computo.h et <stdlib.h>.
  */
 
 /* ================================================================

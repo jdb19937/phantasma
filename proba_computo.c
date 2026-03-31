@@ -6,7 +6,7 @@
  * in GPU (si adest) et CPU.
  */
 
-#include "pfr_computo.h"
+#include "computo.h"
 
 #include <stdio.h>
 #include <stdlib.h>
