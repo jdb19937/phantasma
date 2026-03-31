@@ -135,6 +135,99 @@ static const char *fons_msl =
     "    int i = ij / n, j = ij % n;\n"
     "    if (i >= m) return;\n"
     "    A[ij] += alpha * x[i] * y[j];\n"
+    "}\n"
+    "\n"
+    "/* RMSNorm: o[j] = w[j] * x[j] * rsqrt(mean(x^2) + eps) */\n"
+    "kernel void kern_rmsnorm(\n"
+    "    device const float* x [[buffer(0)]],\n"
+    "    device const float* w [[buffer(1)]],\n"
+    "    device float* o [[buffer(2)]],\n"
+    "    constant int& n [[buffer(3)]],\n"
+    "    constant float& eps [[buffer(4)]],\n"
+    "    threadgroup float* scrip [[threadgroup(0)]],\n"
+    "    uint tid [[thread_index_in_threadgroup]],\n"
+    "    uint tgs [[threads_per_threadgroup]])\n"
+    "{\n"
+    "    float ss = 0.0;\n"
+    "    for (int i = (int)tid; i < n; i += (int)tgs)\n"
+    "        ss += x[i] * x[i];\n"
+    "    scrip[tid] = ss;\n"
+    "    threadgroup_barrier(mem_flags::mem_threadgroup);\n"
+    "    for (uint s = tgs >> 1; s > 0; s >>= 1) {\n"
+    "        if (tid < s) scrip[tid] += scrip[tid + s];\n"
+    "        threadgroup_barrier(mem_flags::mem_threadgroup);\n"
+    "    }\n"
+    "    float inv_rms = rsqrt(scrip[0] / (float)n + eps);\n"
+    "    threadgroup_barrier(mem_flags::mem_threadgroup);\n"
+    "    for (int i = (int)tid; i < n; i += (int)tgs)\n"
+    "        o[i] = w[i] * x[i] * inv_rms;\n"
+    "}\n"
+    "\n"
+    "/* SwiGLU: o[i] = silu(a[i]) * b[i] */\n"
+    "kernel void kern_swiglu(\n"
+    "    device const float* a [[buffer(0)]],\n"
+    "    device const float* b [[buffer(1)]],\n"
+    "    device float* o [[buffer(2)]],\n"
+    "    constant int& n [[buffer(3)]],\n"
+    "    uint gid [[thread_position_in_grid]])\n"
+    "{\n"
+    "    if ((int)gid >= n) return;\n"
+    "    float v = a[gid];\n"
+    "    float sig = 1.0 / (1.0 + exp(-v));\n"
+    "    o[gid] = v * sig * b[gid];\n"
+    "}\n"
+    "\n"
+    "/* Softmax in situ */\n"
+    "kernel void kern_softmax(\n"
+    "    device float* x [[buffer(0)]],\n"
+    "    constant int& n [[buffer(1)]],\n"
+    "    threadgroup float* scrip [[threadgroup(0)]],\n"
+    "    uint tid [[thread_index_in_threadgroup]],\n"
+    "    uint tgs [[threads_per_threadgroup]])\n"
+    "{\n"
+    "    float mx = -1e30;\n"
+    "    for (int i = (int)tid; i < n; i += (int)tgs)\n"
+    "        mx = max(mx, x[i]);\n"
+    "    scrip[tid] = mx;\n"
+    "    threadgroup_barrier(mem_flags::mem_threadgroup);\n"
+    "    for (uint s = tgs >> 1; s > 0; s >>= 1) {\n"
+    "        if (tid < s) scrip[tid] = max(scrip[tid], scrip[tid + s]);\n"
+    "        threadgroup_barrier(mem_flags::mem_threadgroup);\n"
+    "    }\n"
+    "    mx = scrip[0];\n"
+    "    threadgroup_barrier(mem_flags::mem_threadgroup);\n"
+    "    float ss = 0.0;\n"
+    "    for (int i = (int)tid; i < n; i += (int)tgs) {\n"
+    "        x[i] = exp(x[i] - mx);\n"
+    "        ss += x[i];\n"
+    "    }\n"
+    "    scrip[tid] = ss;\n"
+    "    threadgroup_barrier(mem_flags::mem_threadgroup);\n"
+    "    for (uint s = tgs >> 1; s > 0; s >>= 1) {\n"
+    "        if (tid < s) scrip[tid] += scrip[tid + s];\n"
+    "        threadgroup_barrier(mem_flags::mem_threadgroup);\n"
+    "    }\n"
+    "    float inv = 1.0 / scrip[0];\n"
+    "    threadgroup_barrier(mem_flags::mem_threadgroup);\n"
+    "    for (int i = (int)tid; i < n; i += (int)tgs)\n"
+    "        x[i] *= inv;\n"
+    "}\n"
+    "\n"
+    "/* RoPE: rotat paria per positionem */\n"
+    "kernel void kern_rope(\n"
+    "    device float* v [[buffer(0)]],\n"
+    "    constant int& n [[buffer(1)]],\n"
+    "    constant int& pos [[buffer(2)]],\n"
+    "    uint gid [[thread_position_in_grid]])\n"
+    "{\n"
+    "    int i = (int)gid * 2;\n"
+    "    if (i >= n) return;\n"
+    "    float freq = 1.0 / pow(10000.0, (float)i / (float)n);\n"
+    "    float val = (float)pos * freq;\n"
+    "    float fcr = cos(val), fci = sin(val);\n"
+    "    float v0 = v[i], v1 = v[i + 1];\n"
+    "    v[i]     = v0 * fcr - v1 * fci;\n"
+    "    v[i + 1] = v0 * fci + v1 * fcr;\n"
     "}\n";
 
 /* ================================================================
@@ -148,7 +241,11 @@ static const char *fons_msl =
 #define MC_AXPY         4
 #define MC_MATVEC_TRANS 5
 #define MC_GER          6
-#define MC_N_PLENA      7
+#define MC_RMSNORM      7
+#define MC_SWIGLU       8
+#define MC_SOFTMAX      9
+#define MC_ROPE        10
+#define MC_N_PLENA     11
 
 static struct {
     id<MTLDevice>               machina;
@@ -219,7 +316,9 @@ int pfr_computo_initia(void)
         static const char *nomina[MC_N_PLENA] = {
             "kern_matmat", "kern_matvec", "kern_dotum",
             "kern_scalare", "kern_axpy",
-            "kern_matvec_trans", "kern_ger"
+            "kern_matvec_trans", "kern_ger",
+            "kern_rmsnorm", "kern_swiglu",
+            "kern_softmax", "kern_rope"
         };
         int ok = 1;
         for (int i = 0; i < MC_N_PLENA; i++) {
@@ -588,6 +687,100 @@ static int metal_ger(pfr_matrix_f_t *a, float alpha,
 }
 
 /* ================================================================
+ * internae Metal: primitiva neuralium retium
+ * ================================================================ */
+
+static int metal_rmsnorm(void *o_gpu, void *x_gpu, void *w_gpu,
+                         int n, float eps)
+{
+    @autoreleasepool {
+        id<MTLCommandBuffer>         cb  = [mc.coda commandBuffer];
+        id<MTLComputeCommandEncoder> enc = [cb computeCommandEncoder];
+        [enc setComputePipelineState:mc.plena[MC_RMSNORM]];
+        [enc setBuffer:mc_id_buffer(x_gpu) offset:0 atIndex:0];
+        [enc setBuffer:mc_id_buffer(w_gpu) offset:0 atIndex:1];
+        [enc setBuffer:mc_id_buffer(o_gpu) offset:0 atIndex:2];
+        [enc setBytes:&n   length:sizeof(int)   atIndex:3];
+        [enc setBytes:&eps length:sizeof(float) atIndex:4];
+        NSUInteger tgs = 256;
+        if ((NSUInteger)n < tgs) tgs = (NSUInteger)n;
+        NSUInteger t2 = 1;
+        while (t2 < tgs) t2 <<= 1;
+        tgs = t2;
+        [enc setThreadgroupMemoryLength:tgs * sizeof(float) atIndex:0];
+        MTLSize t = MTLSizeMake(tgs, 1, 1);
+        MTLSize g = MTLSizeMake(1, 1, 1);
+        [enc dispatchThreadgroups:g threadsPerThreadgroup:t];
+        [enc endEncoding];
+        mc_exsequere(cb);
+    }
+    return 0;
+}
+
+static int metal_swiglu(void *o_gpu, void *a_gpu, void *b_gpu, int n)
+{
+    @autoreleasepool {
+        id<MTLCommandBuffer>         cb  = [mc.coda commandBuffer];
+        id<MTLComputeCommandEncoder> enc = [cb computeCommandEncoder];
+        [enc setComputePipelineState:mc.plena[MC_SWIGLU]];
+        [enc setBuffer:mc_id_buffer(a_gpu) offset:0 atIndex:0];
+        [enc setBuffer:mc_id_buffer(b_gpu) offset:0 atIndex:1];
+        [enc setBuffer:mc_id_buffer(o_gpu) offset:0 atIndex:2];
+        [enc setBytes:&n length:sizeof(int) atIndex:3];
+        NSUInteger tgs = 256;
+        MTLSize t = MTLSizeMake(tgs, 1, 1);
+        MTLSize g = MTLSizeMake(((size_t)n + tgs - 1) / tgs, 1, 1);
+        [enc dispatchThreadgroups:g threadsPerThreadgroup:t];
+        [enc endEncoding];
+        mc_exsequere(cb);
+    }
+    return 0;
+}
+
+static int metal_softmax(void *x_gpu, int n)
+{
+    @autoreleasepool {
+        id<MTLCommandBuffer>         cb  = [mc.coda commandBuffer];
+        id<MTLComputeCommandEncoder> enc = [cb computeCommandEncoder];
+        [enc setComputePipelineState:mc.plena[MC_SOFTMAX]];
+        [enc setBuffer:mc_id_buffer(x_gpu) offset:0 atIndex:0];
+        [enc setBytes:&n length:sizeof(int) atIndex:1];
+        NSUInteger tgs = 256;
+        if ((NSUInteger)n < tgs) tgs = (NSUInteger)n;
+        NSUInteger t2 = 1;
+        while (t2 < tgs) t2 <<= 1;
+        tgs = t2;
+        [enc setThreadgroupMemoryLength:tgs * sizeof(float) atIndex:0];
+        MTLSize t = MTLSizeMake(tgs, 1, 1);
+        MTLSize g = MTLSizeMake(1, 1, 1);
+        [enc dispatchThreadgroups:g threadsPerThreadgroup:t];
+        [enc endEncoding];
+        mc_exsequere(cb);
+    }
+    return 0;
+}
+
+static int metal_rope(void *v_gpu, int n, int pos)
+{
+    @autoreleasepool {
+        id<MTLCommandBuffer>         cb  = [mc.coda commandBuffer];
+        id<MTLComputeCommandEncoder> enc = [cb computeCommandEncoder];
+        [enc setComputePipelineState:mc.plena[MC_ROPE]];
+        [enc setBuffer:mc_id_buffer(v_gpu) offset:0 atIndex:0];
+        [enc setBytes:&n   length:sizeof(int) atIndex:1];
+        [enc setBytes:&pos length:sizeof(int) atIndex:2];
+        NSUInteger tgs = 256;
+        NSUInteger paria = ((size_t)n / 2 + tgs - 1) / tgs;
+        MTLSize t = MTLSizeMake(tgs, 1, 1);
+        MTLSize g = MTLSizeMake(paria, 1, 1);
+        [enc dispatchThreadgroups:g threadsPerThreadgroup:t];
+        [enc endEncoding];
+        mc_exsequere(cb);
+    }
+    return 0;
+}
+
+/* ================================================================
  * pfr_*_f — conatur GPU; cadit ad CPU si non adest
  * ================================================================ */
 
@@ -734,6 +927,76 @@ int pfr_gpu_ger_f(pfr_matrix_f_t *a, float alpha,
     if (a->m != x->n || a->n != y->n) return -1;
     if (!mc.usar_gpu || !a->gpu || !x->gpu || !y->gpu) return -1;
     return metal_ger(a, alpha, x, y);
+}
+
+/* ================================================================
+ * pfr_*: primitiva neuralium retium — conatur GPU, cadit ad CPU
+ * ================================================================ */
+
+int pfr_rmsnorm_f(pfr_vector_f_t *o, const pfr_vector_f_t *x,
+                  const pfr_vector_f_t *w, float eps)
+{
+    if (!o || !x || !w) return -1;
+    if (mc.usar_gpu && o->gpu && x->gpu && w->gpu)
+        return metal_rmsnorm(o->gpu, x->gpu, w->gpu, x->n, eps);
+    return pfr_cpu_rmsnorm_f(o, x, w, eps);
+}
+
+int pfr_swiglu_f(pfr_vector_f_t *o, const pfr_vector_f_t *a,
+                 const pfr_vector_f_t *b)
+{
+    if (!o || !a || !b) return -1;
+    if (mc.usar_gpu && o->gpu && a->gpu && b->gpu)
+        return metal_swiglu(o->gpu, a->gpu, b->gpu, a->n);
+    return pfr_cpu_swiglu_f(o, a, b);
+}
+
+int pfr_softmax_f(pfr_vector_f_t *x)
+{
+    if (!x) return -1;
+    if (mc.usar_gpu && x->gpu)
+        return metal_softmax(x->gpu, x->n);
+    return pfr_cpu_softmax_f(x);
+}
+
+int pfr_rope_f(pfr_vector_f_t *v, int positio)
+{
+    if (!v) return -1;
+    if (mc.usar_gpu && v->gpu)
+        return metal_rope(v->gpu, v->n, positio);
+    return pfr_cpu_rope_f(v, positio);
+}
+
+/* pfr_gpu_*: primitiva neuralium retium — GPU solum */
+
+int pfr_gpu_rmsnorm_f(pfr_vector_f_t *o, const pfr_vector_f_t *x,
+                      const pfr_vector_f_t *w, float eps)
+{
+    if (!o || !x || !w) return -1;
+    if (!mc.usar_gpu || !o->gpu || !x->gpu || !w->gpu) return -1;
+    return metal_rmsnorm(o->gpu, x->gpu, w->gpu, x->n, eps);
+}
+
+int pfr_gpu_swiglu_f(pfr_vector_f_t *o, const pfr_vector_f_t *a,
+                     const pfr_vector_f_t *b)
+{
+    if (!o || !a || !b) return -1;
+    if (!mc.usar_gpu || !o->gpu || !a->gpu || !b->gpu) return -1;
+    return metal_swiglu(o->gpu, a->gpu, b->gpu, a->n);
+}
+
+int pfr_gpu_softmax_f(pfr_vector_f_t *x)
+{
+    if (!x) return -1;
+    if (!mc.usar_gpu || !x->gpu) return -1;
+    return metal_softmax(x->gpu, x->n);
+}
+
+int pfr_gpu_rope_f(pfr_vector_f_t *v, int positio)
+{
+    if (!v) return -1;
+    if (!mc.usar_gpu || !v->gpu) return -1;
+    return metal_rope(v->gpu, v->n, positio);
 }
 
 /* gpu_*_d — semper fallit: Metal non sustinet double in GPU */

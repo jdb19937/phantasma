@@ -18,6 +18,7 @@
 #include "computo.h"
 
 /* CPU fallback — nexu C ut nomina non deturpentur */
+#include <math.h>
 extern "C" {
 #include "computo_cpu.c"
 }
@@ -84,6 +85,86 @@ __global__ static void kern_axpy_f(float *y, float alpha,
 {
     int i = (int)(blockIdx.x * blockDim.x + threadIdx.x);
     if (i < n) y[i] += alpha * x[i];
+}
+
+/* ================================================================
+ * nuclei CUDA: primitiva neuralium retium (float)
+ * ================================================================ */
+
+__global__ static void kern_rmsnorm_f(const float *x, const float *w,
+                                       float *o, int n, float eps)
+{
+    extern __shared__ float scrip[];
+    int tid = (int)threadIdx.x;
+    int tgs = (int)blockDim.x;
+    float ss = 0.0f;
+    for (int i = tid; i < n; i += tgs) ss += x[i] * x[i];
+    scrip[tid] = ss;
+    __syncthreads();
+    for (int s = tgs / 2; s > 0; s >>= 1) {
+        if (tid < s) scrip[tid] += scrip[tid + s];
+        __syncthreads();
+    }
+    float inv_rms = rsqrtf(scrip[0] / (float)n + eps);
+    __syncthreads();
+    for (int i = tid; i < n; i += tgs)
+        o[i] = w[i] * x[i] * inv_rms;
+}
+
+__global__ static void kern_swiglu_f(const float *a, const float *b,
+                                      float *o, int n)
+{
+    int i = (int)(blockIdx.x * blockDim.x + threadIdx.x);
+    if (i >= n) return;
+    float v = a[i];
+    float sig = 1.0f / (1.0f + expf(-v));
+    o[i] = v * sig * b[i];
+}
+
+__global__ static void kern_softmax_f(float *x, int n)
+{
+    extern __shared__ float scrip[];
+    int tid = (int)threadIdx.x;
+    int tgs = (int)blockDim.x;
+    float mx = -1e30f;
+    for (int i = tid; i < n; i += tgs)
+        if (x[i] > mx) mx = x[i];
+    scrip[tid] = mx;
+    __syncthreads();
+    for (int s = tgs / 2; s > 0; s >>= 1) {
+        if (tid < s && scrip[tid + s] > scrip[tid])
+            scrip[tid] = scrip[tid + s];
+        __syncthreads();
+    }
+    mx = scrip[0];
+    __syncthreads();
+    float ss = 0.0f;
+    for (int i = tid; i < n; i += tgs) {
+        x[i] = expf(x[i] - mx);
+        ss += x[i];
+    }
+    scrip[tid] = ss;
+    __syncthreads();
+    for (int s = tgs / 2; s > 0; s >>= 1) {
+        if (tid < s) scrip[tid] += scrip[tid + s];
+        __syncthreads();
+    }
+    float inv = 1.0f / scrip[0];
+    __syncthreads();
+    for (int i = tid; i < n; i += tgs)
+        x[i] *= inv;
+}
+
+__global__ static void kern_rope_f(float *v, int n, int pos)
+{
+    int i = (int)(blockIdx.x * blockDim.x + threadIdx.x) * 2;
+    if (i >= n) return;
+    float freq = 1.0f / powf(10000.0f, (float)i / (float)n);
+    float val = (float)pos * freq;
+    float fcr = cosf(val), fci = sinf(val);
+    float v0 = v[i], v1 = v[i + 1];
+    v[i]     = v0 * fcr - v1 * fci;
+    v[i + 1] = v0 * fci + v1 * fcr;
 }
 
 /* ================================================================
@@ -398,6 +479,50 @@ static int cuda_axpy_f(pfr_vector_f_t *y, float alpha, const pfr_vector_f_t *x)
 }
 
 /* ================================================================
+ * internae CUDA: primitiva neuralium retium (float)
+ * ================================================================ */
+
+static int cuda_rmsnorm_f(void *o_gpu, void *x_gpu, void *w_gpu,
+                           int n, float eps)
+{
+    int tgs = 256;
+    if (n < tgs) tgs = n;
+    int t2 = 1;
+    while (t2 < tgs) t2 <<= 1;
+    tgs = t2;
+    kern_rmsnorm_f<<<1, tgs, tgs * sizeof(float)>>>(
+        (float*)x_gpu, (float*)w_gpu, (float*)o_gpu, n, eps);
+    return (cudaDeviceSynchronize() == cudaSuccess) ? 0 : -1;
+}
+
+static int cuda_swiglu_f(void *o_gpu, void *a_gpu, void *b_gpu, int n)
+{
+    int tgs = 256;
+    kern_swiglu_f<<<(n+tgs-1)/tgs, tgs>>>(
+        (float*)a_gpu, (float*)b_gpu, (float*)o_gpu, n);
+    return (cudaDeviceSynchronize() == cudaSuccess) ? 0 : -1;
+}
+
+static int cuda_softmax_f(void *x_gpu, int n)
+{
+    int tgs = 256;
+    if (n < tgs) tgs = n;
+    int t2 = 1;
+    while (t2 < tgs) t2 <<= 1;
+    tgs = t2;
+    kern_softmax_f<<<1, tgs, tgs * sizeof(float)>>>((float*)x_gpu, n);
+    return (cudaDeviceSynchronize() == cudaSuccess) ? 0 : -1;
+}
+
+static int cuda_rope_f(void *v_gpu, int n, int pos)
+{
+    int tgs = 256;
+    int paria = (n / 2 + tgs - 1) / tgs;
+    kern_rope_f<<<paria, tgs>>>((float*)v_gpu, n, pos);
+    return (cudaDeviceSynchronize() == cudaSuccess) ? 0 : -1;
+}
+
+/* ================================================================
  * internae CUDA double
  * ================================================================ */
 
@@ -501,6 +626,60 @@ extern "C" int pfr_axpy_f(pfr_vector_f_t *y, float alpha,
     return cuda_axpy_f(y, alpha, x);
 }
 
+/* matvec_trans et ger: CPU solum (nuclei CUDA nondum implementati) */
+
+extern "C" int pfr_matvec_trans_f(pfr_vector_f_t *y,
+                                    const pfr_matrix_f_t *a, const pfr_vector_f_t *x)
+{ return pfr_cpu_matvec_trans_f(y, a, x); }
+
+extern "C" int pfr_ger_f(pfr_matrix_f_t *a, float alpha,
+                           const pfr_vector_f_t *x, const pfr_vector_f_t *y)
+{ return pfr_cpu_ger_f(a, alpha, x, y); }
+
+/* primitiva neuralium retium: conatur GPU, cadit ad CPU */
+
+extern "C" int pfr_rmsnorm_f(pfr_vector_f_t *o, const pfr_vector_f_t *x,
+                               const pfr_vector_f_t *w, float eps)
+{
+    if (!o || !x || !w) return -1;
+    if (cc.usar_gpu && o->gpu && x->gpu && w->gpu)
+        return cuda_rmsnorm_f(o->gpu, x->gpu, w->gpu, x->n, eps);
+    return pfr_cpu_rmsnorm_f(o, x, w, eps);
+}
+
+extern "C" int pfr_swiglu_f(pfr_vector_f_t *o, const pfr_vector_f_t *a,
+                              const pfr_vector_f_t *b)
+{
+    if (!o || !a || !b) return -1;
+    if (cc.usar_gpu && o->gpu && a->gpu && b->gpu)
+        return cuda_swiglu_f(o->gpu, a->gpu, b->gpu, a->n);
+    return pfr_cpu_swiglu_f(o, a, b);
+}
+
+extern "C" int pfr_softmax_f(pfr_vector_f_t *x)
+{
+    if (!x) return -1;
+    if (cc.usar_gpu && x->gpu)
+        return cuda_softmax_f(x->gpu, x->n);
+    return pfr_cpu_softmax_f(x);
+}
+
+extern "C" int pfr_rope_f(pfr_vector_f_t *v, int positio)
+{
+    if (!v) return -1;
+    if (cc.usar_gpu && v->gpu)
+        return cuda_rope_f(v->gpu, v->n, positio);
+    return pfr_cpu_rope_f(v, positio);
+}
+
+extern "C" int pfr_attentio_f(float *o, const float *q,
+                                const float *cache_k, const float *cache_v,
+                                float *att,
+                                int d, int n_capita, int n_capita_kv,
+                                int positio, int longitudo_max)
+{ return pfr_cpu_attentio_f(o, q, cache_k, cache_v, att, d, n_capita,
+                              n_capita_kv, positio, longitudo_max); }
+
 /* ================================================================
  * pfr_*_d — conatur GPU; cadit ad CPU si non adest
  * ================================================================ */
@@ -591,6 +770,46 @@ extern "C" int pfr_gpu_axpy_f(pfr_vector_f_t *y, float alpha,
     if (!y || !x || y->n != x->n) return -1;
     if (!cc.usar_gpu || !y->gpu || !x->gpu) return -1;
     return cuda_axpy_f(y, alpha, x);
+}
+
+extern "C" int pfr_gpu_matvec_trans_f(pfr_vector_f_t *y,
+                                       const pfr_matrix_f_t *a, const pfr_vector_f_t *x)
+{ (void)y; (void)a; (void)x; return -1; }
+
+extern "C" int pfr_gpu_ger_f(pfr_matrix_f_t *a, float alpha,
+                               const pfr_vector_f_t *x, const pfr_vector_f_t *y)
+{ (void)a; (void)alpha; (void)x; (void)y; return -1; }
+
+/* primitiva neuralium retium: GPU solum */
+
+extern "C" int pfr_gpu_rmsnorm_f(pfr_vector_f_t *o, const pfr_vector_f_t *x,
+                                   const pfr_vector_f_t *w, float eps)
+{
+    if (!o || !x || !w) return -1;
+    if (!cc.usar_gpu || !o->gpu || !x->gpu || !w->gpu) return -1;
+    return cuda_rmsnorm_f(o->gpu, x->gpu, w->gpu, x->n, eps);
+}
+
+extern "C" int pfr_gpu_swiglu_f(pfr_vector_f_t *o, const pfr_vector_f_t *a,
+                                  const pfr_vector_f_t *b)
+{
+    if (!o || !a || !b) return -1;
+    if (!cc.usar_gpu || !o->gpu || !a->gpu || !b->gpu) return -1;
+    return cuda_swiglu_f(o->gpu, a->gpu, b->gpu, a->n);
+}
+
+extern "C" int pfr_gpu_softmax_f(pfr_vector_f_t *x)
+{
+    if (!x) return -1;
+    if (!cc.usar_gpu || !x->gpu) return -1;
+    return cuda_softmax_f(x->gpu, x->n);
+}
+
+extern "C" int pfr_gpu_rope_f(pfr_vector_f_t *v, int positio)
+{
+    if (!v) return -1;
+    if (!cc.usar_gpu || !v->gpu) return -1;
+    return cuda_rope_f(v->gpu, v->n, positio);
 }
 
 /* ================================================================

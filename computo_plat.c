@@ -9,6 +9,7 @@
  * computo.o — hic plica non adhibetur.
  */
 
+#include <math.h>
 #include <stdlib.h>
 #include <string.h>
 
@@ -16,6 +17,16 @@
 
 /* CPU fallback: semper includitur */
 #include "computo_cpu.c"
+
+/* attentio: semper CPU (raw pointers, compositum non BLAS) */
+
+int pfr_attentio_f(float *o, const float *q,
+                   const float *cache_k, const float *cache_v,
+                   float *att,
+                   int d, int n_capita, int n_capita_kv,
+                   int positio, int longitudo_max)
+{ return pfr_cpu_attentio_f(o, q, cache_k, cache_v, att, d, n_capita,
+                             n_capita_kv, positio, longitudo_max); }
 
 #if defined(__APPLE__) && !defined(PHANTASMA_X11) && !defined(PFR_COMPUTO_CPU)
 #include "computo_metal.m"
@@ -200,5 +211,35 @@ int pfr_gpu_scalare_d(pfr_vector_d_t *x, double alpha)
 
 int pfr_gpu_axpy_d(pfr_vector_d_t *y, double alpha, const pfr_vector_d_t *x)
 { (void)y; (void)alpha; (void)x; return -1; }
+
+/* primitiva neuralium retium: pfr_* = CPU, pfr_gpu_* = fallit */
+
+int pfr_rmsnorm_f(pfr_vector_f_t *o, const pfr_vector_f_t *x,
+                  const pfr_vector_f_t *w, float eps)
+{ return pfr_cpu_rmsnorm_f(o, x, w, eps); }
+
+int pfr_swiglu_f(pfr_vector_f_t *o, const pfr_vector_f_t *a,
+                 const pfr_vector_f_t *b)
+{ return pfr_cpu_swiglu_f(o, a, b); }
+
+int pfr_softmax_f(pfr_vector_f_t *x)
+{ return pfr_cpu_softmax_f(x); }
+
+int pfr_rope_f(pfr_vector_f_t *v, int positio)
+{ return pfr_cpu_rope_f(v, positio); }
+
+int pfr_gpu_rmsnorm_f(pfr_vector_f_t *o, const pfr_vector_f_t *x,
+                      const pfr_vector_f_t *w, float eps)
+{ (void)o; (void)x; (void)w; (void)eps; return -1; }
+
+int pfr_gpu_swiglu_f(pfr_vector_f_t *o, const pfr_vector_f_t *a,
+                     const pfr_vector_f_t *b)
+{ (void)o; (void)a; (void)b; return -1; }
+
+int pfr_gpu_softmax_f(pfr_vector_f_t *x)
+{ (void)x; return -1; }
+
+int pfr_gpu_rope_f(pfr_vector_f_t *v, int positio)
+{ (void)v; (void)positio; return -1; }
 
 #endif
