@@ -69,7 +69,7 @@ struct pfr_textura {
  * functiones communes (coda, textura, pictor, claves, pausa)
  * ================================================================ */
 
-#include "pfr_communia.c"
+#include "communia.c"
 
 /* ================================================================
  * tabula clavium: macOS keycode -> PFR scancode
