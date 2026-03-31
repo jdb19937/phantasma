@@ -9,6 +9,11 @@
  * Tempore cursus: si MTLCreateSystemDefaultDevice() reddit nil
  * vel compilatio MSL fallit, usar_gpu = 0 et omnes operationes
  * ad pfr_cpu_* cadunt.
+ *
+ * Notae precisionis:
+ *   _f (float): in GPU vel CPU.
+ *   _d (double): semper in CPU — Metal precisionem duplicem
+ *   in machinis GPGPU non sustinet.
  */
 
 #import <Metal/Metal.h>
@@ -216,12 +221,12 @@ void pfr_computo_fini(void)
 }
 
 /* ================================================================
- * crea / destrue
+ * crea / destrue (float)
  * ================================================================ */
 
-pfr_matrix_t *pfr_matrix_crea(int m, int n)
+pfr_matrix_f_t *pfr_matrix_crea_f(int m, int n)
 {
-    pfr_matrix_t *a = (pfr_matrix_t *)calloc(1, sizeof(*a));
+    pfr_matrix_f_t *a = (pfr_matrix_f_t *)calloc(1, sizeof(*a));
     if (!a) return NULL;
     a->m    = m;
     a->n    = n;
@@ -231,7 +236,7 @@ pfr_matrix_t *pfr_matrix_crea(int m, int n)
     return a;
 }
 
-void pfr_matrix_destrue(pfr_matrix_t *a)
+void pfr_matrix_destrue_f(pfr_matrix_f_t *a)
 {
     if (!a) return;
     if (a->gpu) { [mc_id_buffer(a->gpu) release]; a->gpu = NULL; }
@@ -239,9 +244,9 @@ void pfr_matrix_destrue(pfr_matrix_t *a)
     free(a);
 }
 
-pfr_vector_t *pfr_vector_crea(int n)
+pfr_vector_f_t *pfr_vector_crea_f(int n)
 {
-    pfr_vector_t *v = (pfr_vector_t *)calloc(1, sizeof(*v));
+    pfr_vector_f_t *v = (pfr_vector_f_t *)calloc(1, sizeof(*v));
     if (!v) return NULL;
     v->n    = n;
     v->data = (float *)calloc((size_t)n, sizeof(float));
@@ -250,7 +255,7 @@ pfr_vector_t *pfr_vector_crea(int n)
     return v;
 }
 
-void pfr_vector_destrue(pfr_vector_t *v)
+void pfr_vector_destrue_f(pfr_vector_f_t *v)
 {
     if (!v) return;
     if (v->gpu) { [mc_id_buffer(v->gpu) release]; v->gpu = NULL; }
@@ -259,10 +264,51 @@ void pfr_vector_destrue(pfr_vector_t *v)
 }
 
 /* ================================================================
- * translatio CPU <-> GPU
+ * crea / destrue (double) — CPU solum, nullum GPU
  * ================================================================ */
 
-int pfr_in_gpu_mitte(pfr_matrix_t *a)
+pfr_matrix_d_t *pfr_matrix_crea_d(int m, int n)
+{
+    pfr_matrix_d_t *a = (pfr_matrix_d_t *)calloc(1, sizeof(*a));
+    if (!a) return NULL;
+    a->m    = m;
+    a->n    = n;
+    a->data = (double *)calloc((size_t)m * n, sizeof(double));
+    a->gpu  = NULL;
+    if (!a->data) { free(a); return NULL; }
+    return a;
+}
+
+void pfr_matrix_destrue_d(pfr_matrix_d_t *a)
+{
+    if (!a) return;
+    free(a->data);
+    free(a);
+}
+
+pfr_vector_d_t *pfr_vector_crea_d(int n)
+{
+    pfr_vector_d_t *v = (pfr_vector_d_t *)calloc(1, sizeof(*v));
+    if (!v) return NULL;
+    v->n    = n;
+    v->data = (double *)calloc((size_t)n, sizeof(double));
+    v->gpu  = NULL;
+    if (!v->data) { free(v); return NULL; }
+    return v;
+}
+
+void pfr_vector_destrue_d(pfr_vector_d_t *v)
+{
+    if (!v) return;
+    free(v->data);
+    free(v);
+}
+
+/* ================================================================
+ * translatio CPU <-> GPU (float)
+ * ================================================================ */
+
+int pfr_in_gpu_mitte_f(pfr_matrix_f_t *a)
 {
     if (!a || !mc.usar_gpu) return 0;
     size_t bytes = (size_t)a->m * a->n * sizeof(float);
@@ -280,7 +326,7 @@ int pfr_in_gpu_mitte(pfr_matrix_t *a)
     return 0;
 }
 
-int pfr_ex_gpu_cape(pfr_matrix_t *a)
+int pfr_ex_gpu_cape_f(pfr_matrix_f_t *a)
 {
     if (!a || !a->gpu) return 0;
     size_t bytes = (size_t)a->m * a->n * sizeof(float);
@@ -288,7 +334,7 @@ int pfr_ex_gpu_cape(pfr_matrix_t *a)
     return 0;
 }
 
-int pfr_in_gpu_mitte_v(pfr_vector_t *v)
+int pfr_in_gpu_mitte_vf(pfr_vector_f_t *v)
 {
     if (!v || !mc.usar_gpu) return 0;
     size_t bytes = (size_t)v->n * sizeof(float);
@@ -305,13 +351,22 @@ int pfr_in_gpu_mitte_v(pfr_vector_t *v)
     return 0;
 }
 
-int pfr_ex_gpu_cape_v(pfr_vector_t *v)
+int pfr_ex_gpu_cape_vf(pfr_vector_f_t *v)
 {
     if (!v || !v->gpu) return 0;
     size_t bytes = (size_t)v->n * sizeof(float);
     memcpy(v->data, [mc_id_buffer(v->gpu) contents], bytes);
     return 0;
 }
+
+/* ================================================================
+ * translatio CPU <-> GPU (double) — Metal non sustinet; no-op
+ * ================================================================ */
+
+int pfr_in_gpu_mitte_d(pfr_matrix_d_t *a)  { (void)a; return 0; }
+int pfr_ex_gpu_cape_d(pfr_matrix_d_t *a)   { (void)a; return 0; }
+int pfr_in_gpu_mitte_vd(pfr_vector_d_t *v) { (void)v; return 0; }
+int pfr_ex_gpu_cape_vd(pfr_vector_d_t *v)  { (void)v; return 0; }
 
 /* ================================================================
  * auxilium: mandatum synchronum
@@ -327,8 +382,8 @@ static void mc_exsequere(id<MTLCommandBuffer> cb)
  * internae Metal: assumunt mc.usar_gpu et omnes gpu* non-NULL
  * ================================================================ */
 
-static int metal_matmat(pfr_matrix_t *c,
-                         const pfr_matrix_t *a, const pfr_matrix_t *b)
+static int metal_matmat(pfr_matrix_f_t *c,
+                         const pfr_matrix_f_t *a, const pfr_matrix_f_t *b)
 {
     int m = a->m, n = b->n, k = a->n;
     @autoreleasepool {
@@ -352,8 +407,8 @@ static int metal_matmat(pfr_matrix_t *c,
     return 0;
 }
 
-static int metal_matvec(pfr_vector_t *y,
-                         const pfr_matrix_t *a, const pfr_vector_t *x)
+static int metal_matvec(pfr_vector_f_t *y,
+                         const pfr_matrix_f_t *a, const pfr_vector_f_t *x)
 {
     int m = a->m, n = a->n;
     @autoreleasepool {
@@ -376,7 +431,7 @@ static int metal_matvec(pfr_vector_t *y,
 }
 
 static int metal_dotum(float *res,
-                        const pfr_vector_t *x, const pfr_vector_t *y)
+                        const pfr_vector_f_t *x, const pfr_vector_f_t *y)
 {
     int n = x->n;
     NSUInteger tgs_n  = 256;
@@ -408,7 +463,7 @@ static int metal_dotum(float *res,
     return 0;
 }
 
-static int metal_scalare(pfr_vector_t *x, float alpha)
+static int metal_scalare(pfr_vector_f_t *x, float alpha)
 {
     int n = x->n;
     @autoreleasepool {
@@ -428,7 +483,7 @@ static int metal_scalare(pfr_vector_t *x, float alpha)
     return 0;
 }
 
-static int metal_axpy(pfr_vector_t *y, float alpha, const pfr_vector_t *x)
+static int metal_axpy(pfr_vector_f_t *y, float alpha, const pfr_vector_f_t *x)
 {
     int n = y->n;
     @autoreleasepool {
@@ -450,57 +505,79 @@ static int metal_axpy(pfr_vector_t *y, float alpha, const pfr_vector_t *x)
 }
 
 /* ================================================================
- * pfr_* — conatur GPU; cadit ad CPU si non adest
+ * pfr_*_f — conatur GPU; cadit ad CPU si non adest
  * ================================================================ */
 
-int pfr_matmat(pfr_matrix_t *c,
-               const pfr_matrix_t *a, const pfr_matrix_t *b)
+int pfr_matmat_f(pfr_matrix_f_t *c,
+                 const pfr_matrix_f_t *a, const pfr_matrix_f_t *b)
 {
     if (!c || !a || !b) return -1;
     if (a->n != b->m || c->m != a->m || c->n != b->n) return -1;
     if (!mc.usar_gpu || !a->gpu || !b->gpu || !c->gpu)
-        return pfr_cpu_matmat(c, a, b);
+        return pfr_cpu_matmat_f(c, a, b);
     return metal_matmat(c, a, b);
 }
 
-int pfr_matvec(pfr_vector_t *y,
-               const pfr_matrix_t *a, const pfr_vector_t *x)
+int pfr_matvec_f(pfr_vector_f_t *y,
+                 const pfr_matrix_f_t *a, const pfr_vector_f_t *x)
 {
     if (!y || !a || !x) return -1;
     if (a->n != x->n || y->n != a->m) return -1;
     if (!mc.usar_gpu || !a->gpu || !x->gpu || !y->gpu)
-        return pfr_cpu_matvec(y, a, x);
+        return pfr_cpu_matvec_f(y, a, x);
     return metal_matvec(y, a, x);
 }
 
-int pfr_dotum(float *res, const pfr_vector_t *x, const pfr_vector_t *y)
+int pfr_dotum_f(float *res, const pfr_vector_f_t *x, const pfr_vector_f_t *y)
 {
     if (!res || !x || !y || x->n != y->n) return -1;
     if (!mc.usar_gpu || !x->gpu || !y->gpu)
-        return pfr_cpu_dotum(res, x, y);
+        return pfr_cpu_dotum_f(res, x, y);
     return metal_dotum(res, x, y);
 }
 
-int pfr_scalare(pfr_vector_t *x, float alpha)
+int pfr_scalare_f(pfr_vector_f_t *x, float alpha)
 {
     if (!x) return -1;
-    if (!mc.usar_gpu || !x->gpu) return pfr_cpu_scalare(x, alpha);
+    if (!mc.usar_gpu || !x->gpu) return pfr_cpu_scalare_f(x, alpha);
     return metal_scalare(x, alpha);
 }
 
-int pfr_axpy(pfr_vector_t *y, float alpha, const pfr_vector_t *x)
+int pfr_axpy_f(pfr_vector_f_t *y, float alpha, const pfr_vector_f_t *x)
 {
     if (!y || !x || y->n != x->n) return -1;
-    if (!mc.usar_gpu || !y->gpu || !x->gpu) return pfr_cpu_axpy(y, alpha, x);
+    if (!mc.usar_gpu || !y->gpu || !x->gpu) return pfr_cpu_axpy_f(y, alpha, x);
     return metal_axpy(y, alpha, x);
 }
 
 /* ================================================================
- * gpu_* — fallit si GPU non adest vel data non in GPU
+ * pfr_*_d — semper CPU (Metal precisionem duplicem non sustinet)
  * ================================================================ */
 
-int pfr_gpu_matmat(pfr_matrix_t *c,
-               const pfr_matrix_t *a, const pfr_matrix_t *b)
+int pfr_matmat_d(pfr_matrix_d_t *c,
+                 const pfr_matrix_d_t *a, const pfr_matrix_d_t *b)
+{ return pfr_cpu_matmat_d(c, a, b); }
+
+int pfr_matvec_d(pfr_vector_d_t *y,
+                 const pfr_matrix_d_t *a, const pfr_vector_d_t *x)
+{ return pfr_cpu_matvec_d(y, a, x); }
+
+int pfr_dotum_d(double *res,
+                const pfr_vector_d_t *x, const pfr_vector_d_t *y)
+{ return pfr_cpu_dotum_d(res, x, y); }
+
+int pfr_scalare_d(pfr_vector_d_t *x, double alpha)
+{ return pfr_cpu_scalare_d(x, alpha); }
+
+int pfr_axpy_d(pfr_vector_d_t *y, double alpha, const pfr_vector_d_t *x)
+{ return pfr_cpu_axpy_d(y, alpha, x); }
+
+/* ================================================================
+ * gpu_*_f — fallit si GPU non adest vel data non in GPU
+ * ================================================================ */
+
+int pfr_gpu_matmat_f(pfr_matrix_f_t *c,
+                     const pfr_matrix_f_t *a, const pfr_matrix_f_t *b)
 {
     if (!c || !a || !b) return -1;
     if (a->n != b->m || c->m != a->m || c->n != b->n) return -1;
@@ -508,8 +585,8 @@ int pfr_gpu_matmat(pfr_matrix_t *c,
     return metal_matmat(c, a, b);
 }
 
-int pfr_gpu_matvec(pfr_vector_t *y,
-               const pfr_matrix_t *a, const pfr_vector_t *x)
+int pfr_gpu_matvec_f(pfr_vector_f_t *y,
+                     const pfr_matrix_f_t *a, const pfr_vector_f_t *x)
 {
     if (!y || !a || !x) return -1;
     if (a->n != x->n || y->n != a->m) return -1;
@@ -517,22 +594,42 @@ int pfr_gpu_matvec(pfr_vector_t *y,
     return metal_matvec(y, a, x);
 }
 
-int pfr_gpu_dotum(float *res, const pfr_vector_t *x, const pfr_vector_t *y)
+int pfr_gpu_dotum_f(float *res,
+                    const pfr_vector_f_t *x, const pfr_vector_f_t *y)
 {
     if (!res || !x || !y || x->n != y->n) return -1;
     if (!mc.usar_gpu || !x->gpu || !y->gpu) return -1;
     return metal_dotum(res, x, y);
 }
 
-int pfr_gpu_scalare(pfr_vector_t *x, float alpha)
+int pfr_gpu_scalare_f(pfr_vector_f_t *x, float alpha)
 {
     if (!x || !mc.usar_gpu || !x->gpu) return -1;
     return metal_scalare(x, alpha);
 }
 
-int pfr_gpu_axpy(pfr_vector_t *y, float alpha, const pfr_vector_t *x)
+int pfr_gpu_axpy_f(pfr_vector_f_t *y, float alpha, const pfr_vector_f_t *x)
 {
     if (!y || !x || y->n != x->n) return -1;
     if (!mc.usar_gpu || !y->gpu || !x->gpu) return -1;
     return metal_axpy(y, alpha, x);
 }
+
+/* gpu_*_d — semper fallit: Metal non sustinet double in GPU */
+int pfr_gpu_matmat_d(pfr_matrix_d_t *c,
+                     const pfr_matrix_d_t *a, const pfr_matrix_d_t *b)
+{ (void)c; (void)a; (void)b; return -1; }
+
+int pfr_gpu_matvec_d(pfr_vector_d_t *y,
+                     const pfr_matrix_d_t *a, const pfr_vector_d_t *x)
+{ (void)y; (void)a; (void)x; return -1; }
+
+int pfr_gpu_dotum_d(double *res,
+                    const pfr_vector_d_t *x, const pfr_vector_d_t *y)
+{ (void)res; (void)x; (void)y; return -1; }
+
+int pfr_gpu_scalare_d(pfr_vector_d_t *x, double alpha)
+{ (void)x; (void)alpha; return -1; }
+
+int pfr_gpu_axpy_d(pfr_vector_d_t *y, double alpha, const pfr_vector_d_t *x)
+{ (void)y; (void)alpha; (void)x; return -1; }
