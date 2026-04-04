@@ -29,10 +29,10 @@ typedef struct {
 
 static void bs_initia(bs_t *bs, uint8_t *data, int cap)
 {
-    bs->data = data;
+    bs->data      = data;
     bs->capacitas = cap;
-    bs->byte_pos = 0;
-    bs->bit_pos = 0;
+    bs->byte_pos  = 0;
+    bs->bit_pos   = 0;
     memset(data, 0, (size_t)cap);
 }
 
@@ -52,10 +52,13 @@ static void bs_u(bs_t *bs, int n, uint32_t val)
 /* Exp-Golomb unsigned */
 static void bs_ue(bs_t *bs, uint32_t val)
 {
-    uint32_t m = val + 1;
-    int bits = 0;
+    uint32_t m   = val + 1;
+    int bits     = 0;
     uint32_t tmp = m;
-    while (tmp > 0) { bits++; tmp >>= 1; }
+    while (tmp > 0) {
+        bits++;
+        tmp >>= 1;
+    }
     for (int i = 0; i < bits - 1; i++)
         bs_u(bs, 1, 0);
     bs_u(bs, bits, m);
@@ -91,12 +94,12 @@ static void bs_rbsp_fini(bs_t *bs)
 
 static int nal_emittere(uint8_t *dest, const uint8_t *rbsp, int rbsp_lon)
 {
-    int j = 0;
+    int j     = 0;
     int zeros = 0;
     for (int i = 0; i < rbsp_lon; i++) {
         if (zeros >= 2 && rbsp[i] <= 3) {
             dest[j++] = 0x03;
-            zeros = 0;
+            zeros     = 0;
         }
         dest[j++] = rbsp[i];
         if (rbsp[i] == 0)
@@ -111,10 +114,11 @@ static int nal_emittere(uint8_t *dest, const uint8_t *rbsp, int rbsp_lon)
  * RGB -> YUV420 conversio
  * ================================================================ */
 
-static void argb_ad_yuv420(const uint32_t *argb, int lat, int alt,
-                            uint8_t *y_plan, uint8_t *cb_plan,
-                            uint8_t *cr_plan)
-{
+static void argb_ad_yuv420(
+    const uint32_t *argb, int lat, int alt,
+    uint8_t *y_plan, uint8_t *cb_plan,
+    uint8_t *cr_plan
+) {
     int lat_c = lat / 2;
 
     for (int py = 0; py < alt; py++) {
@@ -125,8 +129,10 @@ static void argb_ad_yuv420(const uint32_t *argb, int lat, int alt,
             int b =  px_val        & 0xFF;
 
             int yv =  ((66 * r + 129 * g +  25 * b + 128) >> 8) + 16;
-            if (yv < 16) yv = 16;
-            if (yv > 235) yv = 235;
+            if (yv < 16)
+                yv = 16;
+            if (yv > 235)
+                yv = 235;
             y_plan[py * lat + px] = (uint8_t)yv;
         }
     }
@@ -137,20 +143,30 @@ static void argb_ad_yuv420(const uint32_t *argb, int lat, int alt,
             for (int dy = 0; dy < 2; dy++) {
                 for (int dx = 0; dx < 2; dx++) {
                     int sy = py + dy, sx = px + dx;
-                    if (sy >= alt) sy = alt - 1;
-                    if (sx >= lat) sx = lat - 1;
+                    if (sy >= alt)
+                        sy = alt - 1;
+                    if (sx >= lat)
+                        sx = lat - 1;
                     uint32_t px_val = argb[sy * lat + sx];
                     r += (px_val >> 16) & 0xFF;
                     g += (px_val >>  8) & 0xFF;
                     b +=  px_val        & 0xFF;
                 }
             }
-            r /= 4; g /= 4; b /= 4;
+            r /= 4;
+            g /= 4;
+            b /= 4;
 
             int cb = ((-38 * r -  74 * g + 112 * b + 128) >> 8) + 128;
             int cr = ((112 * r -  94 * g -  18 * b + 128) >> 8) + 128;
-            if (cb < 16) cb = 16; if (cb > 240) cb = 240;
-            if (cr < 16) cr = 16; if (cr > 240) cr = 240;
+            if (cb < 16)
+                cb = 16;
+            if (cb > 240)
+                cb = 240;
+            if (cr < 16)
+                cr = 16;
+            if (cr > 240)
+                cr = 240;
             cb_plan[(py / 2) * lat_c + (px / 2)] = (uint8_t)cb;
             cr_plan[(py / 2) * lat_c + (px / 2)] = (uint8_t)cr;
         }
@@ -189,7 +205,7 @@ static void mp4_capsam_initia(FILE *f, const char *typ, long *pos)
 
 static void mp4_capsam_fini(FILE *f, long pos)
 {
-    long nunc = ftell(f);
+    long nunc    = ftell(f);
     uint32_t mag = (uint32_t)(nunc - pos);
     fseek(f, pos, SEEK_SET);
     mp4_u32(f, mag);
@@ -198,7 +214,8 @@ static void mp4_capsam_fini(FILE *f, long pos)
 
 static void mp4_zeros(FILE *f, int n)
 {
-    for (int i = 0; i < n; i++) fputc(0, f);
+    for (int i = 0; i < n; i++)
+        fputc(0, f);
 }
 
 /* ================================================================
@@ -331,13 +348,16 @@ static void pps_genera(pfr_mp4_t *m)
 
 static int tabulam_encoda(pfr_mp4_t *m, const uint32_t *pixels)
 {
-    argb_ad_yuv420(pixels, m->latitudo, m->altitudo,
-                    m->y_plan, m->cb_plan, m->cr_plan);
+    argb_ad_yuv420(
+        pixels, m->latitudo, m->altitudo,
+        m->y_plan, m->cb_plan, m->cr_plan
+    );
 
     /* RBSP: slice header + MB data */
-    int max_rbsp = 64 + m->mbs_lat * m->mbs_alt * 400;
+    int max_rbsp  = 64 + m->mbs_lat * m->mbs_alt * 400;
     uint8_t *rbsp = (uint8_t *)malloc((size_t)max_rbsp);
-    if (!rbsp) return -1;
+    if (!rbsp)
+        return -1;
 
     bs_t bs;
     bs_initia(&bs, rbsp, max_rbsp);
@@ -376,8 +396,8 @@ static int tabulam_encoda(pfr_mp4_t *m, const uint32_t *pixels)
             /* Y samples: 16x16 */
             for (int y = 0; y < 16; y++) {
                 for (int x = 0; x < 16; x++) {
-                    int sy = mb_y * 16 + y;
-                    int sx = mb_x * 16 + x;
+                    int sy      = mb_y * 16 + y;
+                    int sx      = mb_x * 16 + x;
                     uint8_t val = 16; /* default */
                     if (sy < m->altitudo && sx < m->latitudo)
                         val = m->y_plan[sy * m->latitudo + sx];
@@ -389,8 +409,8 @@ static int tabulam_encoda(pfr_mp4_t *m, const uint32_t *pixels)
             int lat_c = m->latitudo / 2;
             for (int y = 0; y < 8; y++) {
                 for (int x = 0; x < 8; x++) {
-                    int sy = mb_y * 8 + y;
-                    int sx = mb_x * 8 + x;
+                    int sy      = mb_y * 8 + y;
+                    int sx      = mb_x * 8 + x;
                     uint8_t val = 128;
                     if (sy < m->altitudo / 2 && sx < lat_c)
                         val = m->cb_plan[sy * lat_c + sx];
@@ -401,8 +421,8 @@ static int tabulam_encoda(pfr_mp4_t *m, const uint32_t *pixels)
             /* Cr samples: 8x8 */
             for (int y = 0; y < 8; y++) {
                 for (int x = 0; x < 8; x++) {
-                    int sy = mb_y * 8 + y;
-                    int sx = mb_x * 8 + x;
+                    int sy      = mb_y * 8 + y;
+                    int sx      = mb_x * 8 + x;
                     uint8_t val = 128;
                     if (sy < m->altitudo / 2 && sx < lat_c)
                         val = m->cr_plan[sy * lat_c + sx];
@@ -421,8 +441,10 @@ static int tabulam_encoda(pfr_mp4_t *m, const uint32_t *pixels)
     /* emulation prevention */
     if (m->nal_cap < rbsp_lon * 2) {
         m->nal_cap = rbsp_lon * 2;
-        m->nal_alveus = (uint8_t *)realloc(m->nal_alveus,
-                                            (size_t)m->nal_cap);
+        m->nal_alveus = (uint8_t *)realloc(
+            m->nal_alveus,
+            (size_t)m->nal_cap
+        );
     }
     int nal_lon = nal_emittere(m->nal_alveus, rbsp, rbsp_lon);
     free(rbsp);
@@ -435,8 +457,10 @@ static int tabulam_encoda(pfr_mp4_t *m, const uint32_t *pixels)
     uint32_t sample_mag = 4 + (uint32_t)nal_lon;
     if (m->numerus >= m->capacitas) {
         m->capacitas = m->capacitas ? m->capacitas * 2 : 256;
-        m->magnitudines = (uint32_t *)realloc(m->magnitudines,
-            (size_t)m->capacitas * sizeof(uint32_t));
+        m->magnitudines = (uint32_t *)realloc(
+            m->magnitudines,
+            (size_t)m->capacitas * sizeof(uint32_t)
+        );
     }
     m->magnitudines[m->numerus] = sample_mag;
 
@@ -449,8 +473,8 @@ static int tabulam_encoda(pfr_mp4_t *m, const uint32_t *pixels)
 
 static void moov_scribe(pfr_mp4_t *m)
 {
-    FILE *f = m->plica;
-    int n = m->numerus;
+    FILE *f       = m->plica;
+    int n         = m->numerus;
     int dur_media = n;                     /* in media timescale (= fps) */
     int dur_movie = n * 1000 / m->fps;     /* in movie timescale (= 1000) */
     long pos_moov, pos_trak, pos_mdia, pos_minf, pos_stbl;
@@ -460,7 +484,8 @@ static void moov_scribe(pfr_mp4_t *m)
 
     /* --- mvhd --- */
     {
-        long p; mp4_capsam_initia(f, "mvhd", &p);
+        long p;
+        mp4_capsam_initia(f, "mvhd", &p);
         mp4_u32(f, 0);             /* version + flags */
         mp4_u32(f, 0);             /* creation_time */
         mp4_u32(f, 0);             /* modification_time */
@@ -470,9 +495,15 @@ static void moov_scribe(pfr_mp4_t *m)
         mp4_u16(f, 0x0100);        /* volume = 1.0 */
         mp4_zeros(f, 10);          /* reserved */
         /* matrix (identity) */
-        mp4_u32(f, 0x00010000); mp4_zeros(f, 4); mp4_zeros(f, 4);
-        mp4_zeros(f, 4); mp4_u32(f, 0x00010000); mp4_zeros(f, 4);
-        mp4_zeros(f, 4); mp4_zeros(f, 4); mp4_u32(f, 0x40000000);
+        mp4_u32(f, 0x00010000);
+        mp4_zeros(f, 4);
+        mp4_zeros(f, 4);
+        mp4_zeros(f, 4);
+        mp4_u32(f, 0x00010000);
+        mp4_zeros(f, 4);
+        mp4_zeros(f, 4);
+        mp4_zeros(f, 4);
+        mp4_u32(f, 0x40000000);
         mp4_zeros(f, 24);          /* pre_defined */
         mp4_u32(f, 2);             /* next_track_ID */
         mp4_capsam_fini(f, p);
@@ -482,7 +513,8 @@ static void moov_scribe(pfr_mp4_t *m)
 
     /* --- tkhd --- */
     {
-        long p; mp4_capsam_initia(f, "tkhd", &p);
+        long p;
+        mp4_capsam_initia(f, "tkhd", &p);
         mp4_u32(f, 0x00000003);    /* version=0, flags=3 (enabled+in_movie) */
         mp4_u32(f, 0);             /* creation */
         mp4_u32(f, 0);             /* modification */
@@ -495,9 +527,15 @@ static void moov_scribe(pfr_mp4_t *m)
         mp4_u16(f, 0);             /* volume */
         mp4_u16(f, 0);             /* reserved */
         /* matrix */
-        mp4_u32(f, 0x00010000); mp4_zeros(f, 4); mp4_zeros(f, 4);
-        mp4_zeros(f, 4); mp4_u32(f, 0x00010000); mp4_zeros(f, 4);
-        mp4_zeros(f, 4); mp4_zeros(f, 4); mp4_u32(f, 0x40000000);
+        mp4_u32(f, 0x00010000);
+        mp4_zeros(f, 4);
+        mp4_zeros(f, 4);
+        mp4_zeros(f, 4);
+        mp4_u32(f, 0x00010000);
+        mp4_zeros(f, 4);
+        mp4_zeros(f, 4);
+        mp4_zeros(f, 4);
+        mp4_u32(f, 0x40000000);
         mp4_u32(f, (uint32_t)m->latitudo << 16);   /* width (fixed-point) */
         mp4_u32(f, (uint32_t)m->altitudo << 16);   /* height */
         mp4_capsam_fini(f, p);
@@ -507,9 +545,11 @@ static void moov_scribe(pfr_mp4_t *m)
 
     /* --- mdhd --- */
     {
-        long p; mp4_capsam_initia(f, "mdhd", &p);
+        long p;
+        mp4_capsam_initia(f, "mdhd", &p);
         mp4_u32(f, 0);
-        mp4_u32(f, 0); mp4_u32(f, 0);
+        mp4_u32(f, 0);
+        mp4_u32(f, 0);
         mp4_u32(f, (uint32_t)m->fps);      /* timescale */
         mp4_u32(f, (uint32_t)dur_media);    /* duration */
         mp4_u16(f, 0x55C4);        /* language = und */
@@ -519,7 +559,8 @@ static void moov_scribe(pfr_mp4_t *m)
 
     /* --- hdlr --- */
     {
-        long p; mp4_capsam_initia(f, "hdlr", &p);
+        long p;
+        mp4_capsam_initia(f, "hdlr", &p);
         mp4_u32(f, 0);
         mp4_u32(f, 0);             /* pre_defined */
         fwrite("vide", 1, 4, f);   /* handler_type */
@@ -532,16 +573,22 @@ static void moov_scribe(pfr_mp4_t *m)
 
     /* --- vmhd --- */
     {
-        long p; mp4_capsam_initia(f, "vmhd", &p);
+        long p;
+        mp4_capsam_initia(f, "vmhd", &p);
         mp4_u32(f, 0x00000001);    /* version=0, flags=1 */
-        mp4_u16(f, 0); mp4_u16(f, 0); mp4_u16(f, 0); mp4_u16(f, 0);
+        mp4_u16(f, 0);
+        mp4_u16(f, 0);
+        mp4_u16(f, 0);
+        mp4_u16(f, 0);
         mp4_capsam_fini(f, p);
     }
 
     /* --- dinf/dref --- */
     {
-        long pd; mp4_capsam_initia(f, "dinf", &pd);
-        long pr; mp4_capsam_initia(f, "dref", &pr);
+        long pd;
+        mp4_capsam_initia(f, "dinf", &pd);
+        long pr;
+        mp4_capsam_initia(f, "dref", &pr);
         mp4_u32(f, 0);             /* version + flags */
         mp4_u32(f, 1);             /* entry_count */
         /* url entry (self-contained) */
@@ -575,7 +622,8 @@ static void moov_scribe(pfr_mp4_t *m)
 
     /* avcC box */
     {
-        long pa; mp4_capsam_initia(f, "avcC", &pa);
+        long pa;
+        mp4_capsam_initia(f, "avcC", &pa);
         mp4_u8(f, 1);              /* version */
         mp4_u8(f, 66);             /* profile */
         mp4_u8(f, 0xC0);           /* compatibility (constraint_set0+1) */
@@ -595,7 +643,8 @@ static void moov_scribe(pfr_mp4_t *m)
 
     /* --- stts --- */
     {
-        long p; mp4_capsam_initia(f, "stts", &p);
+        long p;
+        mp4_capsam_initia(f, "stts", &p);
         mp4_u32(f, 0);
         mp4_u32(f, 1);             /* entry_count */
         mp4_u32(f, (uint32_t)n);   /* sample_count */
@@ -605,7 +654,8 @@ static void moov_scribe(pfr_mp4_t *m)
 
     /* --- stsc --- */
     {
-        long p; mp4_capsam_initia(f, "stsc", &p);
+        long p;
+        mp4_capsam_initia(f, "stsc", &p);
         mp4_u32(f, 0);
         mp4_u32(f, 1);             /* entry_count */
         mp4_u32(f, 1);             /* first_chunk */
@@ -616,7 +666,8 @@ static void moov_scribe(pfr_mp4_t *m)
 
     /* --- stsz --- */
     {
-        long p; mp4_capsam_initia(f, "stsz", &p);
+        long p;
+        mp4_capsam_initia(f, "stsz", &p);
         mp4_u32(f, 0);
         mp4_u32(f, 0);             /* sample_size = 0 (variabilis) */
         mp4_u32(f, (uint32_t)n);
@@ -627,7 +678,8 @@ static void moov_scribe(pfr_mp4_t *m)
 
     /* --- stco --- */
     {
-        long p; mp4_capsam_initia(f, "stco", &p);
+        long p;
+        mp4_capsam_initia(f, "stco", &p);
         mp4_u32(f, 0);
         mp4_u32(f, 1);             /* entry_count (unus chunk) */
         mp4_u32(f, (uint32_t)m->mdat_data_pos);  /* chunk offset */
@@ -636,7 +688,8 @@ static void moov_scribe(pfr_mp4_t *m)
 
     /* --- stss (sync samples — omnes sunt sync) --- */
     {
-        long p; mp4_capsam_initia(f, "stss", &p);
+        long p;
+        mp4_capsam_initia(f, "stss", &p);
         mp4_u32(f, 0);
         mp4_u32(f, (uint32_t)n);
         for (int i = 0; i < n; i++)
@@ -658,31 +711,36 @@ static void moov_scribe(pfr_mp4_t *m)
 pfr_mp4_t *pfr_mp4_initia(const char *via, int lat, int alt, int fps)
 {
     pfr_mp4_t *m = (pfr_mp4_t *)calloc(1, sizeof(*m));
-    if (!m) return NULL;
+    if (!m)
+        return NULL;
 
     m->latitudo = lat;
     m->altitudo = alt;
-    m->fps = fps;
-    m->mbs_lat = (lat + 15) / 16;
-    m->mbs_alt = (alt + 15) / 16;
+    m->fps      = fps;
+    m->mbs_lat  = (lat + 15) / 16;
+    m->mbs_alt  = (alt + 15) / 16;
 
     m->plica = fopen(via, "wb");
-    if (!m->plica) { free(m); return NULL; }
+    if (!m->plica) {
+        free(m);
+        return NULL;
+    }
 
     /* genera SPS et PPS */
     sps_genera(m);
     pps_genera(m);
 
     /* plana YUV */
-    int n_y  = (m->mbs_lat * 16) * (m->mbs_alt * 16);
-    int n_c  = (m->mbs_lat * 8)  * (m->mbs_alt * 8);
+    int n_y    = (m->mbs_lat * 16) * (m->mbs_alt * 16);
+    int n_c    = (m->mbs_lat * 8)  * (m->mbs_alt * 8);
     m->y_plan  = (uint8_t *)calloc(1, (size_t)n_y);
     m->cb_plan = (uint8_t *)calloc(1, (size_t)n_c);
     m->cr_plan = (uint8_t *)calloc(1, (size_t)n_c);
 
     /* ftyp */
     {
-        long p; mp4_capsam_initia(m->plica, "ftyp", &p);
+        long p;
+        mp4_capsam_initia(m->plica, "ftyp", &p);
         fwrite("isom", 1, 4, m->plica);    /* major_brand */
         mp4_u32(m->plica, 0x200);           /* minor_version */
         fwrite("isom", 1, 4, m->plica);
@@ -703,7 +761,8 @@ pfr_mp4_t *pfr_mp4_initia(const char *via, int lat, int alt, int fps)
 
 int pfr_mp4_tabulam_adde(pfr_mp4_t *m, const uint32_t *pixels)
 {
-    if (!m || !pixels) return -1;
+    if (!m || !pixels)
+        return -1;
     int res = tabulam_encoda(m, pixels);
     if (res == 0)
         m->numerus++;
@@ -712,11 +771,12 @@ int pfr_mp4_tabulam_adde(pfr_mp4_t *m, const uint32_t *pixels)
 
 void pfr_mp4_fini(pfr_mp4_t *m)
 {
-    if (!m) return;
+    if (!m)
+        return;
 
     if (m->plica && m->numerus > 0) {
         /* mdat magnitudinem reple */
-        long mdat_finis = ftell(m->plica);
+        long mdat_finis   = ftell(m->plica);
         uint32_t mdat_mag = (uint32_t)(mdat_finis - m->mdat_pos);
         fseek(m->plica, m->mdat_pos, SEEK_SET);
         mp4_u32(m->plica, mdat_mag);
@@ -726,7 +786,8 @@ void pfr_mp4_fini(pfr_mp4_t *m)
         moov_scribe(m);
     }
 
-    if (m->plica) fclose(m->plica);
+    if (m->plica)
+        fclose(m->plica);
     free(m->y_plan);
     free(m->cb_plan);
     free(m->cr_plan);

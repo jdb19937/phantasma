@@ -88,7 +88,8 @@ static int x11_ad_scancodem(KeySym ks)
         return PFR_SC_A + (int)(ks - XK_a);
     if (ks >= XK_1 && ks <= XK_9)
         return PFR_SC_1 + (int)(ks - XK_1);
-    if (ks == XK_0) return PFR_SC_0;
+    if (ks == XK_0)
+        return PFR_SC_0;
     switch (ks) {
     case XK_Left:    return PFR_SC_SINISTRUM;
     case XK_Right:   return PFR_SC_DEXTRUM;
@@ -132,12 +133,14 @@ int pfr_initia(pfr_u32 flags)
 
     ph.exhibitio = XOpenDisplay(NULL);
     if (!ph.exhibitio) {
-        snprintf(ph.erratum, sizeof(ph.erratum),
-                 "XOpenDisplay fallivit");
+        snprintf(
+            ph.erratum, sizeof(ph.erratum),
+            "XOpenDisplay fallivit"
+        );
         return -1;
     }
 
-    ph.wm_dele = XInternAtom(ph.exhibitio, "WM_DELETE_WINDOW", False);
+    ph.wm_dele   = XInternAtom(ph.exhibitio, "WM_DELETE_WINDOW", False);
     ph.initiatum = 1;
     return 0;
 }
@@ -155,14 +158,19 @@ void pfr_fini(void)
  * fenestra
  * ================================================================ */
 
-pfr_fenestra_t *pfr_fenestram_crea(const char *titulus, int x, int y,
-                                    int lat, int alt, pfr_u32 flags)
-{
-    (void)x; (void)y; (void)flags;
-    if (!ph.exhibitio) return NULL;
+pfr_fenestra_t *pfr_fenestram_crea(
+    const char *titulus, int x, int y,
+    int lat, int alt, pfr_u32 flags
+) {
+    (void)x;
+    (void)y;
+    (void)flags;
+    if (!ph.exhibitio)
+        return NULL;
 
     pfr_fenestra_t *f = (pfr_fenestra_t *)calloc(1, sizeof(*f));
-    if (!f) return NULL;
+    if (!f)
+        return NULL;
     f->latitudo = lat;
     f->altitudo = alt;
 
@@ -171,12 +179,15 @@ pfr_fenestra_t *pfr_fenestram_crea(const char *titulus, int x, int y,
         ph.exhibitio, RootWindow(ph.exhibitio, scr),
         0, 0, (unsigned)lat, (unsigned)alt, 0,
         BlackPixel(ph.exhibitio, scr),
-        BlackPixel(ph.exhibitio, scr));
+        BlackPixel(ph.exhibitio, scr)
+    );
 
     XStoreName(ph.exhibitio, f->x_fenestra, titulus);
-    XSelectInput(ph.exhibitio, f->x_fenestra,
-                 ExposureMask | KeyPressMask | KeyReleaseMask
-                 | ButtonPressMask | StructureNotifyMask);
+    XSelectInput(
+        ph.exhibitio, f->x_fenestra,
+        ExposureMask | KeyPressMask | KeyReleaseMask
+        | ButtonPressMask | StructureNotifyMask
+    );
 
     XSetWMProtocols(ph.exhibitio, f->x_fenestra, &ph.wm_dele, 1);
 
@@ -189,7 +200,8 @@ pfr_fenestra_t *pfr_fenestram_crea(const char *titulus, int x, int y,
     XEvent xe;
     while (1) {
         XNextEvent(ph.exhibitio, &xe);
-        if (xe.type == MapNotify) break;
+        if (xe.type == MapNotify)
+            break;
     }
 
     return f;
@@ -197,7 +209,8 @@ pfr_fenestra_t *pfr_fenestram_crea(const char *titulus, int x, int y,
 
 void pfr_fenestram_destrue(pfr_fenestra_t *f)
 {
-    if (!f || !ph.exhibitio) return;
+    if (!f || !ph.exhibitio)
+        return;
     XFreeGC(ph.exhibitio, f->x_gc);
     XDestroyWindow(ph.exhibitio, f->x_fenestra);
     XFlush(ph.exhibitio);
@@ -208,26 +221,36 @@ void pfr_fenestram_destrue(pfr_fenestra_t *f)
  * pictor (renderer)
  * ================================================================ */
 
-pfr_pictor_t *pfr_pictorem_crea(pfr_fenestra_t *f, int index,
-                                 pfr_u32 flags)
-{
-    (void)index; (void)flags;
-    if (!f) return NULL;
+pfr_pictor_t *pfr_pictorem_crea(
+    pfr_fenestra_t *f, int index,
+    pfr_u32 flags
+) {
+    (void)index;
+    (void)flags;
+    if (!f)
+        return NULL;
 
     pfr_pictor_t *p = (pfr_pictor_t *)calloc(1, sizeof(*p));
-    if (!p) return NULL;
+    if (!p)
+        return NULL;
     p->fenestra = f;
     p->latitudo = f->latitudo;
     p->altitudo = f->altitudo;
-    p->alveus = (uint32_t *)calloc((size_t)p->latitudo * p->altitudo,
-                                    sizeof(uint32_t));
-    if (!p->alveus) { free(p); return NULL; }
+    p->alveus = (uint32_t *)calloc(
+        (size_t)p->latitudo * p->altitudo,
+        sizeof(uint32_t)
+    );
+    if (!p->alveus) {
+        free(p);
+        return NULL;
+    }
     return p;
 }
 
 void pfr_pictorem_destrue(pfr_pictor_t *p)
 {
-    if (!p) return;
+    if (!p)
+        return;
     free(p->alveus);
     free(p);
 }
@@ -238,26 +261,31 @@ void pfr_pictorem_destrue(pfr_pictor_t *p)
 
 void pfr_praesenta(pfr_pictor_t *p)
 {
-    if (!p || !p->fenestra || !ph.exhibitio) return;
+    if (!p || !p->fenestra || !ph.exhibitio)
+        return;
 
-    int scr = DefaultScreen(ph.exhibitio);
+    int scr     = DefaultScreen(ph.exhibitio);
     Visual *vis = DefaultVisual(ph.exhibitio, scr);
-    int depth = DefaultDepth(ph.exhibitio, scr);
+    int depth   = DefaultDepth(ph.exhibitio, scr);
 
     XImage *img = XCreateImage(
         ph.exhibitio, vis, (unsigned)depth, ZPixmap, 0,
         (char *)p->alveus,
         (unsigned)p->latitudo, (unsigned)p->altitudo,
-        32, p->latitudo * 4);
-    if (!img) return;
+        32, p->latitudo * 4
+    );
+    if (!img)
+        return;
 
     /* ne XDestroyImage data liberet */
     img->f.destroy_image = NULL;
 
-    XPutImage(ph.exhibitio, p->fenestra->x_fenestra,
-              p->fenestra->x_gc, img,
-              0, 0, 0, 0,
-              (unsigned)p->latitudo, (unsigned)p->altitudo);
+    XPutImage(
+        ph.exhibitio, p->fenestra->x_fenestra,
+        p->fenestra->x_gc, img,
+        0, 0, 0, 0,
+        (unsigned)p->latitudo, (unsigned)p->altitudo
+    );
 
     /* manu liberamus sine data */
     img->data = NULL;
@@ -280,9 +308,9 @@ static void x11_eventum_convertere(XEvent *xe)
 
         /* scancode ex keysym sine modifiers */
         KeySym ks_base = XLookupKeysym(&xe->xkey, 0);
-        int scancode = x11_ad_scancodem(ks_base);
-        int symbolum = x11_ad_symbolum(ks);
-        int depressus = (xe->type == KeyPress) ? 1 : 0;
+        int scancode   = x11_ad_scancodem(ks_base);
+        int symbolum   = x11_ad_symbolum(ks);
+        int depressus  = (xe->type == KeyPress) ? 1 : 0;
 
         if (scancode > 0 && scancode < PFR_SC_NUMERUS)
             ph.claves[scancode] = depressus ? 1 : 0;
@@ -303,16 +331,18 @@ static void x11_eventum_convertere(XEvent *xe)
         if (xe->xbutton.button == 4 || xe->xbutton.button == 5) {
             pfr_eventus_t se;
             memset(&se, 0, sizeof(se));
-            se.typus = PFR_ROTA_MURIS;
+            se.typus      = PFR_ROTA_MURIS;
             se.rota.typus = PFR_ROTA_MURIS;
-            se.rota.y = (xe->xbutton.button == 4) ? 1 : -1;
+            se.rota.y     = (xe->xbutton.button == 4) ? 1 : -1;
             coda_insere(&se);
         }
     }
 
     /* fenestra clausa */
-    if (xe->type == ClientMessage
-        && (Atom)xe->xclient.data.l[0] == ph.wm_dele) {
+    if (
+        xe->type == ClientMessage
+        && (Atom)xe->xclient.data.l[0] == ph.wm_dele
+    ) {
         pfr_eventus_t se;
         memset(&se, 0, sizeof(se));
         se.typus = PFR_EXITUS;
@@ -322,7 +352,8 @@ static void x11_eventum_convertere(XEvent *xe)
 
 int pfr_eventum_lege(pfr_eventus_t *eventus)
 {
-    if (!ph.exhibitio) return 0;
+    if (!ph.exhibitio)
+        return 0;
 
     while (XPending(ph.exhibitio) > 0) {
         XEvent xe;

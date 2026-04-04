@@ -87,4 +87,7 @@ purga:
 	    proba_mp4.o proba_mp4 proba_gif.o proba_gif \
 	    proba_nn.o proba_nn
 
-.PHONY: omnia proba proba_computo proba_mp4 proba_gif proba_nn purga
+linte:
+	insinulint -c *.c *.h
+
+.PHONY: omnia proba proba_computo proba_mp4 proba_gif proba_nn purga linte

@@ -19,7 +19,7 @@
  * instrumenta probationis
  * ================================================================ */
 
-static int probationes_totae = 0;
+static int probationes_totae  = 0;
 static int probationes_rectae = 0;
 static int probationes_falsae = 0;
 
@@ -53,9 +53,10 @@ static void plicam_dele(const char *via)
 /* alveum pixelorum ARGB8888 creat */
 static uint32_t *pixels_crea(int lat, int alt, uint32_t color)
 {
-    size_t n = (size_t)lat * alt;
+    size_t n    = (size_t)lat * alt;
     uint32_t *p = (uint32_t *)malloc(n * sizeof(uint32_t));
-    if (!p) return NULL;
+    if (!p)
+        return NULL;
     for (size_t i = 0; i < n; i++)
         p[i] = color;
     return p;
@@ -65,7 +66,8 @@ static uint32_t *pixels_crea(int lat, int alt, uint32_t color)
 static long plica_magnitudo(const char *via)
 {
     FILE *f = fopen(via, "rb");
-    if (!f) return -1;
+    if (!f)
+        return -1;
     fseek(f, 0, SEEK_END);
     long mag = ftell(f);
     fclose(f);
@@ -76,31 +78,38 @@ static long plica_magnitudo(const char *via)
 static uint32_t lege_u32(FILE *f)
 {
     uint8_t b[4];
-    if (fread(b, 1, 4, f) != 4) return 0;
+    if (fread(b, 1, 4, f) != 4)
+        return 0;
     return ((uint32_t)b[0] << 24) | ((uint32_t)b[1] << 16) |
-           ((uint32_t)b[2] << 8)  |  (uint32_t)b[3];
+        ((uint32_t)b[2] << 8)  |  (uint32_t)b[3];
 }
 
 /* capsam MP4 quaerit per nomen (4 characteres) */
-static int capsam_inveni(const char *via, const char *nomen,
-                          long *pos_out, uint32_t *mag_out)
-{
+static int capsam_inveni(
+    const char *via, const char *nomen,
+    long *pos_out, uint32_t *mag_out
+) {
     FILE *f = fopen(via, "rb");
-    if (!f) return 0;
+    if (!f)
+        return 0;
     fseek(f, 0, SEEK_END);
     long finis = ftell(f);
     fseek(f, 0, SEEK_SET);
 
     while (ftell(f) < finis - 8) {
-        long p = ftell(f);
+        long p       = ftell(f);
         uint32_t mag = lege_u32(f);
         char typ[5] = {0};
-        if (fread(typ, 1, 4, f) != 4) break;
-        if (mag < 8) break;
+        if (fread(typ, 1, 4, f) != 4)
+            break;
+        if (mag < 8)
+            break;
 
         if (memcmp(typ, nomen, 4) == 0) {
-            if (pos_out) *pos_out = p;
-            if (mag_out) *mag_out = mag;
+            if (pos_out)
+                *pos_out = p;
+            if (mag_out)
+                *mag_out = mag;
             fclose(f);
             return 1;
         }
@@ -145,20 +154,32 @@ static const char *proba_fini_nulla(void)
 static const char *proba_vita_simplex(void)
 {
     const char *via = viam_novam();
-    pfr_mp4_t *m = pfr_mp4_initia(via, 64, 64, 30);
-    if (!m) return "initia falsum";
+    pfr_mp4_t *m    = pfr_mp4_initia(via, 64, 64, 30);
+    if (!m)
+        return "initia falsum";
 
     uint32_t *pix = pixels_crea(64, 64, 0xFF804020);
-    if (!pix) { pfr_mp4_fini(m); plicam_dele(via); return "memoria"; }
+    if (!pix) {
+        pfr_mp4_fini(m);
+        plicam_dele(via);
+        return "memoria";
+    }
 
     int res = pfr_mp4_tabulam_adde(m, pix);
     free(pix);
-    if (res != 0) { pfr_mp4_fini(m); plicam_dele(via); return "adde falsum"; }
+    if (res != 0) {
+        pfr_mp4_fini(m);
+        plicam_dele(via);
+        return "adde falsum";
+    }
 
     pfr_mp4_fini(m);
 
     long mag = plica_magnitudo(via);
-    if (mag <= 0) { plicam_dele(via); return "plica vacua"; }
+    if (mag <= 0) {
+        plicam_dele(via);
+        return "plica vacua";
+    }
 
     plicam_dele(via);
     return NULL;
@@ -167,16 +188,23 @@ static const char *proba_vita_simplex(void)
 static const char *proba_plures_tabulae(void)
 {
     const char *via = viam_novam();
-    pfr_mp4_t *m = pfr_mp4_initia(via, 128, 96, 24);
-    if (!m) return "initia falsum";
+    pfr_mp4_t *m    = pfr_mp4_initia(via, 128, 96, 24);
+    if (!m)
+        return "initia falsum";
 
     uint32_t *pix = pixels_crea(128, 96, 0xFFFF0000);
-    if (!pix) { pfr_mp4_fini(m); plicam_dele(via); return "memoria"; }
+    if (!pix) {
+        pfr_mp4_fini(m);
+        plicam_dele(via);
+        return "memoria";
+    }
 
     for (int i = 0; i < 10; i++) {
         int res = pfr_mp4_tabulam_adde(m, pix);
         if (res != 0) {
-            free(pix); pfr_mp4_fini(m); plicam_dele(via);
+            free(pix);
+            pfr_mp4_fini(m);
+            plicam_dele(via);
             return "adde falsum";
         }
     }
@@ -186,7 +214,8 @@ static const char *proba_plures_tabulae(void)
 
     long mag = plica_magnitudo(via);
     plicam_dele(via);
-    if (mag <= 0) return "plica vacua";
+    if (mag <= 0)
+        return "plica vacua";
     return NULL;
 }
 
@@ -195,8 +224,9 @@ static const char *proba_plures_tabulae(void)
 static const char *proba_sine_tabulis(void)
 {
     const char *via = viam_novam();
-    pfr_mp4_t *m = pfr_mp4_initia(via, 32, 32, 30);
-    if (!m) return "initia falsum";
+    pfr_mp4_t *m    = pfr_mp4_initia(via, 32, 32, 30);
+    if (!m)
+        return "initia falsum";
 
     /* fini sine ulla tabula addita */
     pfr_mp4_fini(m);
@@ -204,7 +234,8 @@ static const char *proba_sine_tabulis(void)
     long mag = plica_magnitudo(via);
     plicam_dele(via);
     /* plica debet existere (saltem ftyp + mdat caput) */
-    if (mag <= 0) return "plica non scripta";
+    if (mag <= 0)
+        return "plica non scripta";
     return NULL;
 }
 
@@ -215,20 +246,30 @@ static const char *proba_dimensiones_impares(void)
     const char *via = viam_novam();
     /* 100x75 — non multiplex 16 */
     pfr_mp4_t *m = pfr_mp4_initia(via, 100, 75, 30);
-    if (!m) return "initia falsum";
+    if (!m)
+        return "initia falsum";
 
     uint32_t *pix = pixels_crea(100, 75, 0xFF00FF00);
-    if (!pix) { pfr_mp4_fini(m); plicam_dele(via); return "memoria"; }
+    if (!pix) {
+        pfr_mp4_fini(m);
+        plicam_dele(via);
+        return "memoria";
+    }
 
     int res = pfr_mp4_tabulam_adde(m, pix);
     free(pix);
-    if (res != 0) { pfr_mp4_fini(m); plicam_dele(via); return "adde falsum"; }
+    if (res != 0) {
+        pfr_mp4_fini(m);
+        plicam_dele(via);
+        return "adde falsum";
+    }
 
     pfr_mp4_fini(m);
 
     long mag = plica_magnitudo(via);
     plicam_dele(via);
-    if (mag <= 0) return "plica vacua";
+    if (mag <= 0)
+        return "plica vacua";
     return NULL;
 }
 
@@ -237,36 +278,48 @@ static const char *proba_dimensiones_impares(void)
 static const char *proba_dimensio_1x1(void)
 {
     const char *via = viam_novam();
-    pfr_mp4_t *m = pfr_mp4_initia(via, 1, 1, 30);
-    if (!m) return "initia falsum";
+    pfr_mp4_t *m    = pfr_mp4_initia(via, 1, 1, 30);
+    if (!m)
+        return "initia falsum";
 
     uint32_t pix = 0xFFFFFFFF;
-    int res = pfr_mp4_tabulam_adde(m, &pix);
-    if (res != 0) { pfr_mp4_fini(m); plicam_dele(via); return "adde falsum"; }
+    int res      = pfr_mp4_tabulam_adde(m, &pix);
+    if (res != 0) {
+        pfr_mp4_fini(m);
+        plicam_dele(via);
+        return "adde falsum";
+    }
 
     pfr_mp4_fini(m);
 
     long mag = plica_magnitudo(via);
     plicam_dele(via);
-    if (mag <= 0) return "plica vacua";
+    if (mag <= 0)
+        return "plica vacua";
     return NULL;
 }
 
 static const char *proba_dimensio_2x2(void)
 {
     const char *via = viam_novam();
-    pfr_mp4_t *m = pfr_mp4_initia(via, 2, 2, 30);
-    if (!m) return "initia falsum";
+    pfr_mp4_t *m    = pfr_mp4_initia(via, 2, 2, 30);
+    if (!m)
+        return "initia falsum";
 
     uint32_t pix[4] = {0xFF000000, 0xFFFF0000, 0xFF00FF00, 0xFF0000FF};
     int res = pfr_mp4_tabulam_adde(m, pix);
-    if (res != 0) { pfr_mp4_fini(m); plicam_dele(via); return "adde falsum"; }
+    if (res != 0) {
+        pfr_mp4_fini(m);
+        plicam_dele(via);
+        return "adde falsum";
+    }
 
     pfr_mp4_fini(m);
 
     long mag = plica_magnitudo(via);
     plicam_dele(via);
-    if (mag <= 0) return "plica vacua";
+    if (mag <= 0)
+        return "plica vacua";
     return NULL;
 }
 
@@ -275,11 +328,16 @@ static const char *proba_dimensio_2x2(void)
 static const char *proba_dimensio_768(void)
 {
     const char *via = viam_novam();
-    pfr_mp4_t *m = pfr_mp4_initia(via, 768, 768, 30);
-    if (!m) return "initia falsum";
+    pfr_mp4_t *m    = pfr_mp4_initia(via, 768, 768, 30);
+    if (!m)
+        return "initia falsum";
 
     uint32_t *pix = pixels_crea(768, 768, 0xFF402010);
-    if (!pix) { pfr_mp4_fini(m); plicam_dele(via); return "memoria"; }
+    if (!pix) {
+        pfr_mp4_fini(m);
+        plicam_dele(via);
+        return "memoria";
+    }
 
     /* tres tabulae sicut in inscriptione brevi */
     for (int i = 0; i < 3; i++) {
@@ -289,7 +347,9 @@ static const char *proba_dimensio_768(void)
 
         int res = pfr_mp4_tabulam_adde(m, pix);
         if (res != 0) {
-            free(pix); pfr_mp4_fini(m); plicam_dele(via);
+            free(pix);
+            pfr_mp4_fini(m);
+            plicam_dele(via);
             return "adde falsum";
         }
     }
@@ -299,7 +359,8 @@ static const char *proba_dimensio_768(void)
 
     long mag = plica_magnitudo(via);
     plicam_dele(via);
-    if (mag <= 0) return "plica vacua";
+    if (mag <= 0)
+        return "plica vacua";
     return NULL;
 }
 
@@ -308,11 +369,16 @@ static const char *proba_dimensio_768(void)
 static const char *proba_capsae_mp4(void)
 {
     const char *via = viam_novam();
-    pfr_mp4_t *m = pfr_mp4_initia(via, 64, 48, 25);
-    if (!m) return "initia falsum";
+    pfr_mp4_t *m    = pfr_mp4_initia(via, 64, 48, 25);
+    if (!m)
+        return "initia falsum";
 
     uint32_t *pix = pixels_crea(64, 48, 0xFFAA5533);
-    if (!pix) { pfr_mp4_fini(m); plicam_dele(via); return "memoria"; }
+    if (!pix) {
+        pfr_mp4_fini(m);
+        plicam_dele(via);
+        return "memoria";
+    }
 
     pfr_mp4_tabulam_adde(m, pix);
     pfr_mp4_tabulam_adde(m, pix);
@@ -326,9 +392,12 @@ static const char *proba_capsae_mp4(void)
 
     plicam_dele(via);
 
-    if (!ftyp_inv) return "capsa ftyp non inventa";
-    if (!mdat_inv) return "capsa mdat non inventa";
-    if (!moov_inv) return "capsa moov non inventa";
+    if (!ftyp_inv)
+        return "capsa ftyp non inventa";
+    if (!mdat_inv)
+        return "capsa mdat non inventa";
+    if (!moov_inv)
+        return "capsa moov non inventa";
     return NULL;
 }
 
@@ -337,28 +406,46 @@ static const char *proba_capsae_mp4(void)
 static const char *proba_ftyp_contenta(void)
 {
     const char *via = viam_novam();
-    pfr_mp4_t *m = pfr_mp4_initia(via, 32, 32, 30);
-    if (!m) return "initia falsum";
+    pfr_mp4_t *m    = pfr_mp4_initia(via, 32, 32, 30);
+    if (!m)
+        return "initia falsum";
 
     uint32_t *pix = pixels_crea(32, 32, 0xFF000000);
-    if (!pix) { pfr_mp4_fini(m); plicam_dele(via); return "memoria"; }
+    if (!pix) {
+        pfr_mp4_fini(m);
+        plicam_dele(via);
+        return "memoria";
+    }
     pfr_mp4_tabulam_adde(m, pix);
     free(pix);
     pfr_mp4_fini(m);
 
     FILE *f = fopen(via, "rb");
     plicam_dele(via);
-    if (!f) return "plica non aperitur";
+    if (!f)
+        return "plica non aperitur";
 
     /* ftyp debet esse prima capsa */
     (void)lege_u32(f);  /* praetermitte magnitudinem */
     char typ[5] = {0};
-    if (fread(typ, 1, 4, f) != 4) { fclose(f); return "lectura falli"; }
-    if (memcmp(typ, "ftyp", 4) != 0) { fclose(f); return "ftyp non prima"; }
+    if (fread(typ, 1, 4, f) != 4) {
+        fclose(f);
+        return "lectura falli";
+    }
+    if (memcmp(typ, "ftyp", 4) != 0) {
+        fclose(f);
+        return "ftyp non prima";
+    }
 
     char marca[5] = {0};
-    if (fread(marca, 1, 4, f) != 4) { fclose(f); return "marca legi non potest"; }
-    if (memcmp(marca, "isom", 4) != 0) { fclose(f); return "marca non isom"; }
+    if (fread(marca, 1, 4, f) != 4) {
+        fclose(f);
+        return "marca legi non potest";
+    }
+    if (memcmp(marca, "isom", 4) != 0) {
+        fclose(f);
+        return "marca non isom";
+    }
 
     fclose(f);
     return NULL;
@@ -369,8 +456,9 @@ static const char *proba_ftyp_contenta(void)
 static const char *proba_pixels_nullus(void)
 {
     const char *via = viam_novam();
-    pfr_mp4_t *m = pfr_mp4_initia(via, 64, 64, 30);
-    if (!m) return "initia falsum";
+    pfr_mp4_t *m    = pfr_mp4_initia(via, 64, 64, 30);
+    if (!m)
+        return "initia falsum";
 
     int res = pfr_mp4_tabulam_adde(m, NULL);
     pfr_mp4_fini(m);
@@ -386,11 +474,16 @@ static const char *proba_pixels_nullus(void)
 static const char *proba_gradiens(void)
 {
     const char *via = viam_novam();
-    pfr_mp4_t *m = pfr_mp4_initia(via, 320, 240, 30);
-    if (!m) return "initia falsum";
+    pfr_mp4_t *m    = pfr_mp4_initia(via, 320, 240, 30);
+    if (!m)
+        return "initia falsum";
 
     uint32_t *pix = (uint32_t *)malloc(320 * 240 * sizeof(uint32_t));
-    if (!pix) { pfr_mp4_fini(m); plicam_dele(via); return "memoria"; }
+    if (!pix) {
+        pfr_mp4_fini(m);
+        plicam_dele(via);
+        return "memoria";
+    }
 
     for (int t = 0; t < 5; t++) {
         /* gradiens diversus pro unaquaque tabula */
@@ -400,12 +493,14 @@ static const char *proba_gradiens(void)
                 uint8_t g = (uint8_t)((y + t * 30) & 0xFF);
                 uint8_t b = (uint8_t)((x + y + t * 10) & 0xFF);
                 pix[y * 320 + x] = 0xFF000000 | ((uint32_t)r << 16) |
-                                    ((uint32_t)g << 8) | (uint32_t)b;
+                    ((uint32_t)g << 8) | (uint32_t)b;
             }
         }
         int res = pfr_mp4_tabulam_adde(m, pix);
         if (res != 0) {
-            free(pix); pfr_mp4_fini(m); plicam_dele(via);
+            free(pix);
+            pfr_mp4_fini(m);
+            plicam_dele(via);
             return "adde falsum";
         }
     }
@@ -415,7 +510,8 @@ static const char *proba_gradiens(void)
 
     long mag = plica_magnitudo(via);
     plicam_dele(via);
-    if (mag <= 0) return "plica vacua";
+    if (mag <= 0)
+        return "plica vacua";
     return NULL;
 }
 
@@ -424,11 +520,16 @@ static const char *proba_gradiens(void)
 static const char *proba_mdat_magnitudo(void)
 {
     const char *via = viam_novam();
-    pfr_mp4_t *m = pfr_mp4_initia(via, 16, 16, 30);
-    if (!m) return "initia falsum";
+    pfr_mp4_t *m    = pfr_mp4_initia(via, 16, 16, 30);
+    if (!m)
+        return "initia falsum";
 
     uint32_t *pix = pixels_crea(16, 16, 0xFF808080);
-    if (!pix) { pfr_mp4_fini(m); plicam_dele(via); return "memoria"; }
+    if (!pix) {
+        pfr_mp4_fini(m);
+        plicam_dele(via);
+        return "memoria";
+    }
 
     pfr_mp4_tabulam_adde(m, pix);
     free(pix);
@@ -439,11 +540,14 @@ static const char *proba_mdat_magnitudo(void)
     int inv = capsam_inveni(via, "mdat", NULL, &mdat_mag);
     plicam_dele(via);
 
-    if (!inv) return "mdat non inventa";
-    if (mdat_mag <= 8) return "mdat nimis parva";
+    if (!inv)
+        return "mdat non inventa";
+    if (mdat_mag <= 8)
+        return "mdat nimis parva";
 
     /* pro 16x16 cum I_PCM: 1 MB × (256 Y + 64 Cb + 64 Cr) + caput */
-    if (mdat_mag < 400) return "mdat nimis parva pro 16x16";
+    if (mdat_mag < 400)
+        return "mdat nimis parva pro 16x16";
 
     return NULL;
 }
@@ -453,18 +557,24 @@ static const char *proba_mdat_magnitudo(void)
 static const char *proba_latitudo_impar(void)
 {
     const char *via = viam_novam();
-    pfr_mp4_t *m = pfr_mp4_initia(via, 17, 16, 30);
-    if (!m) return "initia falsum";
+    pfr_mp4_t *m    = pfr_mp4_initia(via, 17, 16, 30);
+    if (!m)
+        return "initia falsum";
 
     uint32_t *pix = pixels_crea(17, 16, 0xFFAABBCC);
-    if (!pix) { pfr_mp4_fini(m); plicam_dele(via); return "memoria"; }
+    if (!pix) {
+        pfr_mp4_fini(m);
+        plicam_dele(via);
+        return "memoria";
+    }
 
     int res = pfr_mp4_tabulam_adde(m, pix);
     free(pix);
     pfr_mp4_fini(m);
     plicam_dele(via);
 
-    if (res != 0) return "adde falsum cum latitudine impari";
+    if (res != 0)
+        return "adde falsum cum latitudine impari";
     return NULL;
 }
 
@@ -473,18 +583,24 @@ static const char *proba_latitudo_impar(void)
 static const char *proba_altitudo_impar(void)
 {
     const char *via = viam_novam();
-    pfr_mp4_t *m = pfr_mp4_initia(via, 16, 17, 30);
-    if (!m) return "initia falsum";
+    pfr_mp4_t *m    = pfr_mp4_initia(via, 16, 17, 30);
+    if (!m)
+        return "initia falsum";
 
     uint32_t *pix = pixels_crea(16, 17, 0xFFDDEEFF);
-    if (!pix) { pfr_mp4_fini(m); plicam_dele(via); return "memoria"; }
+    if (!pix) {
+        pfr_mp4_fini(m);
+        plicam_dele(via);
+        return "memoria";
+    }
 
     int res = pfr_mp4_tabulam_adde(m, pix);
     free(pix);
     pfr_mp4_fini(m);
     plicam_dele(via);
 
-    if (res != 0) return "adde falsum cum altitudine impari";
+    if (res != 0)
+        return "adde falsum cum altitudine impari";
     return NULL;
 }
 
@@ -493,11 +609,16 @@ static const char *proba_altitudo_impar(void)
 static const char *proba_fps_unum(void)
 {
     const char *via = viam_novam();
-    pfr_mp4_t *m = pfr_mp4_initia(via, 32, 32, 1);
-    if (!m) return "initia falsum";
+    pfr_mp4_t *m    = pfr_mp4_initia(via, 32, 32, 1);
+    if (!m)
+        return "initia falsum";
 
     uint32_t *pix = pixels_crea(32, 32, 0xFF112233);
-    if (!pix) { pfr_mp4_fini(m); plicam_dele(via); return "memoria"; }
+    if (!pix) {
+        pfr_mp4_fini(m);
+        plicam_dele(via);
+        return "memoria";
+    }
 
     pfr_mp4_tabulam_adde(m, pix);
     free(pix);
@@ -506,7 +627,8 @@ static const char *proba_fps_unum(void)
     int moov = capsam_inveni(via, "moov", NULL, NULL);
     plicam_dele(via);
 
-    if (!moov) return "moov non inventa cum fps=1";
+    if (!moov)
+        return "moov non inventa cum fps=1";
     return NULL;
 }
 
@@ -515,18 +637,25 @@ static const char *proba_fps_unum(void)
 static const char *proba_frame_num_wrap(void)
 {
     const char *via = viam_novam();
-    pfr_mp4_t *m = pfr_mp4_initia(via, 16, 16, 30);
-    if (!m) return "initia falsum";
+    pfr_mp4_t *m    = pfr_mp4_initia(via, 16, 16, 30);
+    if (!m)
+        return "initia falsum";
 
     uint32_t *pix = pixels_crea(16, 16, 0xFF000000);
-    if (!pix) { pfr_mp4_fini(m); plicam_dele(via); return "memoria"; }
+    if (!pix) {
+        pfr_mp4_fini(m);
+        plicam_dele(via);
+        return "memoria";
+    }
 
     /* 17 tabulae — transit frame_num maximum (16) */
     for (int i = 0; i < 17; i++) {
-        pix[0] = 0xFF000000 | (uint32_t)i;
+        pix[0]  = 0xFF000000 | (uint32_t)i;
         int res = pfr_mp4_tabulam_adde(m, pix);
         if (res != 0) {
-            free(pix); pfr_mp4_fini(m); plicam_dele(via);
+            free(pix);
+            pfr_mp4_fini(m);
+            plicam_dele(via);
             return "adde falsum";
         }
     }
@@ -536,7 +665,8 @@ static const char *proba_frame_num_wrap(void)
 
     long mag = plica_magnitudo(via);
     plicam_dele(via);
-    if (mag <= 0) return "plica vacua";
+    if (mag <= 0)
+        return "plica vacua";
     return NULL;
 }
 
@@ -545,8 +675,9 @@ static const char *proba_frame_num_wrap(void)
 static const char *proba_dimensio_3x3(void)
 {
     const char *via = viam_novam();
-    pfr_mp4_t *m = pfr_mp4_initia(via, 3, 3, 30);
-    if (!m) return "initia falsum";
+    pfr_mp4_t *m    = pfr_mp4_initia(via, 3, 3, 30);
+    if (!m)
+        return "initia falsum";
 
     uint32_t pix[9];
     for (int i = 0; i < 9; i++)
@@ -556,7 +687,8 @@ static const char *proba_dimensio_3x3(void)
     pfr_mp4_fini(m);
     plicam_dele(via);
 
-    if (res != 0) return "adde falsum cum 3x3";
+    if (res != 0)
+        return "adde falsum cum 3x3";
     return NULL;
 }
 
@@ -565,11 +697,16 @@ static const char *proba_dimensio_3x3(void)
 static const char *proba_ordo_capsarum(void)
 {
     const char *via = viam_novam();
-    pfr_mp4_t *m = pfr_mp4_initia(via, 32, 32, 30);
-    if (!m) return "initia falsum";
+    pfr_mp4_t *m    = pfr_mp4_initia(via, 32, 32, 30);
+    if (!m)
+        return "initia falsum";
 
     uint32_t *pix = pixels_crea(32, 32, 0xFFAAAAAA);
-    if (!pix) { pfr_mp4_fini(m); plicam_dele(via); return "memoria"; }
+    if (!pix) {
+        pfr_mp4_fini(m);
+        plicam_dele(via);
+        return "memoria";
+    }
     pfr_mp4_tabulam_adde(m, pix);
     free(pix);
     pfr_mp4_fini(m);
@@ -628,8 +765,10 @@ int main(void)
     PROBA("fps unum",             proba_fps_unum());
     PROBA("frame_num wrap (17)",  proba_frame_num_wrap());
 
-    fprintf(stderr, "\n=== Summa: %d/%d rectae",
-            probationes_rectae, probationes_totae);
+    fprintf(
+        stderr, "\n=== Summa: %d/%d rectae",
+        probationes_rectae, probationes_totae
+    );
     if (probationes_falsae > 0)
         fprintf(stderr, ", %d FALSAE", probationes_falsae);
     fprintf(stderr, " ===\n");

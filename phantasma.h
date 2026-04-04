@@ -198,34 +198,46 @@ const char  *pfr_erratum(void);
 
 /* --- fenestra --- */
 
-pfr_fenestra_t *pfr_fenestram_crea(const char *titulus, int x, int y,
-                                    int lat, int alt, pfr_u32 flags);
+pfr_fenestra_t *pfr_fenestram_crea(
+    const char *titulus, int x, int y,
+    int lat, int alt, pfr_u32 flags
+);
 void            pfr_fenestram_destrue(pfr_fenestra_t *f);
 
 /* --- pictor (renderer) --- */
 
-pfr_pictor_t *pfr_pictorem_crea(pfr_fenestra_t *f, int index,
-                                 pfr_u32 flags);
+pfr_pictor_t *pfr_pictorem_crea(
+    pfr_fenestra_t *f, int index,
+    pfr_u32 flags
+);
 void          pfr_pictorem_destrue(pfr_pictor_t *p);
 
 /* --- textura --- */
 
-pfr_textura_t *pfr_texturam_crea(pfr_pictor_t *p, pfr_u32 forma,
-                                  int accessus, int lat, int alt);
+pfr_textura_t *pfr_texturam_crea(
+    pfr_pictor_t *p, pfr_u32 forma,
+    int accessus, int lat, int alt
+);
 void           pfr_texturam_destrue(pfr_textura_t *t);
 
-int  pfr_texturam_renova(pfr_textura_t *t, const pfr_rectum_t *rect,
-                          const void *pixels, int passus);
+int  pfr_texturam_renova(
+    pfr_textura_t *t, const pfr_rectum_t *rect,
+    const void *pixels, int passus
+);
 
 /* --- redditio --- */
 
 int  pfr_purga(pfr_pictor_t *p);
-int  pfr_texturam_pinge(pfr_pictor_t *p, pfr_textura_t *t,
-                         const pfr_rectum_t *fons, const pfr_rectum_t *dest);
+int  pfr_texturam_pinge(
+    pfr_pictor_t *p, pfr_textura_t *t,
+    const pfr_rectum_t *fons, const pfr_rectum_t *dest
+);
 void pfr_praesenta(pfr_pictor_t *p);
 
-int  pfr_colorem_pone(pfr_pictor_t *p,
-                       pfr_u8 r, pfr_u8 g, pfr_u8 b, pfr_u8 a);
+int  pfr_colorem_pone(
+    pfr_pictor_t *p,
+    pfr_u8 r, pfr_u8 g, pfr_u8 b, pfr_u8 a
+);
 int  pfr_punctum_pinge(pfr_pictor_t *p, int x, int y);
 int  pfr_rectum_imple(pfr_pictor_t *p, const pfr_rectum_t *rect);
 
@@ -252,8 +264,10 @@ typedef struct pfr_mp4 pfr_mp4_t;
  * scala:   factor reductionis (1 = plena, 2 = dimidia, etc.).
  * pixels ARGB8888 expectantur.
  */
-pfr_gif_t *pfr_gif_initia(const char *via, int lat, int alt,
-                            int mora_cs, int scala);
+pfr_gif_t *pfr_gif_initia(
+    const char *via, int lat, int alt,
+    int mora_cs, int scala
+);
 int  pfr_gif_tabulam_adde(pfr_gif_t *g, const uint32_t *pixels);
 void pfr_gif_fini(pfr_gif_t *g);
 

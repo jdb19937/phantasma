@@ -24,7 +24,7 @@ static void imple_temere(float *p, int n, unsigned int *semen)
 {
     for (int i = 0; i < n; i++) {
         *semen = *semen * 1664525u + 1013904223u;
-        p[i] = ((float)(int)*semen) / 2147483648.0f;
+        p[i]   = ((float)(int)*semen) / 2147483648.0f;
     }
 }
 
@@ -45,9 +45,9 @@ static resultatum_t proba_rmsnorm(int dim, int iter)
 {
     resultatum_t r = { "rmsnorm", dim, iter, 0, 0, 0 };
     unsigned int semen = 42;
-    pfr_vector_f_t *o = pfr_vector_crea_f(dim);
-    pfr_vector_f_t *x = pfr_vector_crea_f(dim);
-    pfr_vector_f_t *w = pfr_vector_crea_f(dim);
+    pfr_vector_f_t *o  = pfr_vector_crea_f(dim);
+    pfr_vector_f_t *x  = pfr_vector_crea_f(dim);
+    pfr_vector_f_t *w  = pfr_vector_crea_f(dim);
     imple_temere(x->data, dim, &semen);
     imple_temere(w->data, dim, &semen);
 
@@ -86,9 +86,9 @@ static resultatum_t proba_matvec(int dim, int iter)
 {
     resultatum_t r = { "matvec", dim, iter, 0, 0, 0 };
     unsigned int semen = 42;
-    pfr_matrix_f_t *A = pfr_matrix_crea_f(dim, dim);
-    pfr_vector_f_t *x = pfr_vector_crea_f(dim);
-    pfr_vector_f_t *y = pfr_vector_crea_f(dim);
+    pfr_matrix_f_t *A  = pfr_matrix_crea_f(dim, dim);
+    pfr_vector_f_t *x  = pfr_vector_crea_f(dim);
+    pfr_vector_f_t *y  = pfr_vector_crea_f(dim);
     imple_temere(A->data, dim * dim, &semen);
     imple_temere(x->data, dim, &semen);
 
@@ -123,7 +123,7 @@ static resultatum_t proba_softmax(int dim, int iter)
 {
     resultatum_t r = { "softmax", dim, iter, 0, 0, 0 };
     unsigned int semen = 42;
-    pfr_vector_f_t *x = pfr_vector_crea_f(dim);
+    pfr_vector_f_t *x  = pfr_vector_crea_f(dim);
     imple_temere(x->data, dim, &semen);
 
     double t0 = tempus_sec();
@@ -158,9 +158,9 @@ static resultatum_t proba_swiglu(int dim, int iter)
 {
     resultatum_t r = { "swiglu", dim, iter, 0, 0, 0 };
     unsigned int semen = 42;
-    pfr_vector_f_t *o = pfr_vector_crea_f(dim);
-    pfr_vector_f_t *a = pfr_vector_crea_f(dim);
-    pfr_vector_f_t *b = pfr_vector_crea_f(dim);
+    pfr_vector_f_t *o  = pfr_vector_crea_f(dim);
+    pfr_vector_f_t *a  = pfr_vector_crea_f(dim);
+    pfr_vector_f_t *b  = pfr_vector_crea_f(dim);
     imple_temere(a->data, dim, &semen);
     imple_temere(b->data, dim, &semen);
 
@@ -195,13 +195,17 @@ static resultatum_t proba_swiglu(int dim, int iter)
 
 static void imprime(resultatum_t r)
 {
-    printf("  %-8s dim=%-5d  cpu=%8.1f us  gpu=%8.1f us  gen=%8.1f us",
-           r.nomen, r.dim, r.cpu_us, r.gpu_us, r.gen_us);
+    printf(
+        "  %-8s dim=%-5d  cpu=%8.1f us  gpu=%8.1f us  gen=%8.1f us",
+        r.nomen, r.dim, r.cpu_us, r.gpu_us, r.gen_us
+    );
     if (r.gpu_us > 0 && r.cpu_us > 0) {
         double ratio = r.cpu_us / r.gpu_us;
-        printf("  %s %.1fx",
-               ratio > 1.0 ? "GPU velocior" : "CPU velocior",
-               ratio > 1.0 ? ratio : 1.0 / ratio);
+        printf(
+            "  %s %.1fx",
+            ratio > 1.0 ? "GPU velocior" : "CPU velocior",
+            ratio > 1.0 ? ratio : 1.0 / ratio
+        );
     }
     printf("\n");
 }
@@ -209,14 +213,16 @@ static void imprime(resultatum_t r)
 int main(void)
 {
     int gpu = pfr_computo_initia();
-    printf("=== proba_nn: GPU %s ===\n\n",
-           gpu == 0 ? "adest" : "non adest (CPU solum)");
+    printf(
+        "=== proba_nn: GPU %s ===\n\n",
+        gpu == 0 ? "adest" : "non adest (CPU solum)"
+    );
 
     int dims[] = { 64, 128, 256, 512, 1024, 2048, 4096 };
     int n_dims = 7;
 
     for (int d = 0; d < n_dims; d++) {
-        int dim = dims[d];
+        int dim  = dims[d];
         int iter = dim <= 256 ? 1000 : (dim <= 1024 ? 200 : 50);
         printf("dim = %d (%d iterationes):\n", dim, iter);
         imprime(proba_rmsnorm(dim, iter));

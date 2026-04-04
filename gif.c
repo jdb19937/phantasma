@@ -58,8 +58,10 @@ static int capsa_amplitudo(const capsa_t *c)
     int dr = c->r_max - c->r_min;
     int dg = c->g_max - c->g_min;
     int db = c->b_max - c->b_min;
-    if (dr >= dg && dr >= db) return 0;
-    if (dg >= dr && dg >= db) return 1;
+    if (dr >= dg && dr >= db)
+        return 0;
+    if (dg >= dr && dg >= db)
+        return 1;
     return 2;
 }
 
@@ -68,8 +70,10 @@ static int capsa_magnitudo(const capsa_t *c)
     int dr = c->r_max - c->r_min;
     int dg = c->g_max - c->g_min;
     int db = c->b_max - c->b_min;
-    if (dr >= dg && dr >= db) return dr;
-    if (dg >= dr && dg >= db) return dg;
+    if (dr >= dg && dr >= db)
+        return dr;
+    if (dg >= dr && dg >= db)
+        return dg;
     return db;
 }
 
@@ -90,9 +94,10 @@ typedef struct {
     int64_t r_sum, g_sum, b_sum;
 } hist_cella_t;
 
-static void paletam_genera(const uint8_t *rgb, int n_pix,
-                            uint8_t paleta[][3], int n_colorum)
-{
+static void paletam_genera(
+    const uint8_t *rgb, int n_pix,
+    uint8_t paleta[][3], int n_colorum
+) {
     /* histogrammum aedifica */
     hist_cella_t *hist = (hist_cella_t *)calloc(HIST_N, sizeof(hist_cella_t));
 
@@ -101,8 +106,8 @@ static void paletam_genera(const uint8_t *rgb, int n_pix,
         int g = rgb[i * 3 + 1];
         int b = rgb[i * 3 + 2];
         int hi = (r >> HIST_SHIFT) * HIST_DIM * HIST_DIM +
-                 (g >> HIST_SHIFT) * HIST_DIM +
-                 (b >> HIST_SHIFT);
+            (g >> HIST_SHIFT) * HIST_DIM +
+            (b >> HIST_SHIFT);
         hist[hi].numerus++;
         hist[hi].r_sum += r;
         hist[hi].g_sum += g;
@@ -111,7 +116,7 @@ static void paletam_genera(const uint8_t *rgb, int n_pix,
 
     /* capsas initia */
     capsa_t *capsae = (capsa_t *)calloc((size_t)n_colorum, sizeof(capsa_t));
-    int n_capsarum = 1;
+    int n_capsarum  = 1;
 
     capsae[0].r_min = capsae[0].g_min = capsae[0].b_min = 255;
     capsae[0].r_max = capsae[0].g_max = capsae[0].b_max = 0;
@@ -121,17 +126,21 @@ static void paletam_genera(const uint8_t *rgb, int n_pix,
         for (int gi = 0; gi < HIST_DIM; gi++) {
             for (int bi = 0; bi < HIST_DIM; bi++) {
                 int hi = ri * HIST_DIM * HIST_DIM + gi * HIST_DIM + bi;
-                if (hist[hi].numerus == 0) continue;
+                if (hist[hi].numerus == 0)
+                    continue;
                 int r = ri << HIST_SHIFT;
                 int g = gi << HIST_SHIFT;
                 int b = bi << HIST_SHIFT;
-                if (r < capsae[0].r_min) capsae[0].r_min = r;
+                if (r < capsae[0].r_min)
+                    capsae[0].r_min = r;
                 if ((r + (1 << HIST_SHIFT) - 1) > capsae[0].r_max)
                     capsae[0].r_max = r + (1 << HIST_SHIFT) - 1;
-                if (g < capsae[0].g_min) capsae[0].g_min = g;
+                if (g < capsae[0].g_min)
+                    capsae[0].g_min = g;
                 if ((g + (1 << HIST_SHIFT) - 1) > capsae[0].g_max)
                     capsae[0].g_max = g + (1 << HIST_SHIFT) - 1;
-                if (b < capsae[0].b_min) capsae[0].b_min = b;
+                if (b < capsae[0].b_min)
+                    capsae[0].b_min = b;
                 if ((b + (1 << HIST_SHIFT) - 1) > capsae[0].b_max)
                     capsae[0].b_max = b + (1 << HIST_SHIFT) - 1;
                 capsae[0].r_sum += hist[hi].r_sum;
@@ -145,21 +154,29 @@ static void paletam_genera(const uint8_t *rgb, int n_pix,
     /* scinde capsas donec n_colorum habeamus */
     while (n_capsarum < n_colorum) {
         /* invenire capsam cum maxima amplitudine */
-        int optima = -1;
+        int optima  = -1;
         int max_amp = 0;
         for (int i = 0; i < n_capsarum; i++) {
-            if (capsae[i].numerus < 2) continue;
+            if (capsae[i].numerus < 2)
+                continue;
             int amp = capsa_magnitudo(&capsae[i]);
-            if (amp > max_amp) { max_amp = amp; optima = i; }
+            if (amp > max_amp) {
+                max_amp = amp;
+                optima  = i;
+            }
         }
-        if (optima < 0) break;
+        if (optima < 0)
+            break;
 
         /* scinde per medianum dimensionis maximae */
         int dim = capsa_amplitudo(&capsae[optima]);
         int medio;
-        if (dim == 0) medio = (capsae[optima].r_min + capsae[optima].r_max) / 2;
-        else if (dim == 1) medio = (capsae[optima].g_min + capsae[optima].g_max) / 2;
-        else medio = (capsae[optima].b_min + capsae[optima].b_max) / 2;
+        if (dim == 0)
+            medio = (capsae[optima].r_min + capsae[optima].r_max) / 2;
+        else if (dim == 1)
+            medio = (capsae[optima].g_min + capsae[optima].g_max) / 2;
+        else
+            medio = (capsae[optima].b_min + capsae[optima].b_max) / 2;
 
         /* percurre histogrammum intra limites capsae */
         capsa_t lo = {255, 0, 255, 0, 255, 0, 0, 0, 0, 0};
@@ -171,15 +188,19 @@ static void paletam_genera(const uint8_t *rgb, int n_pix,
         int gi_max = capsae[optima].g_max >> HIST_SHIFT;
         int bi_min = capsae[optima].b_min >> HIST_SHIFT;
         int bi_max = capsae[optima].b_max >> HIST_SHIFT;
-        if (ri_max >= HIST_DIM) ri_max = HIST_DIM - 1;
-        if (gi_max >= HIST_DIM) gi_max = HIST_DIM - 1;
-        if (bi_max >= HIST_DIM) bi_max = HIST_DIM - 1;
+        if (ri_max >= HIST_DIM)
+            ri_max = HIST_DIM - 1;
+        if (gi_max >= HIST_DIM)
+            gi_max = HIST_DIM - 1;
+        if (bi_max >= HIST_DIM)
+            bi_max = HIST_DIM - 1;
 
         for (int ri = ri_min; ri <= ri_max; ri++) {
             for (int gi = gi_min; gi <= gi_max; gi++) {
                 for (int bi = bi_min; bi <= bi_max; bi++) {
                     int idx = ri * HIST_DIM * HIST_DIM + gi * HIST_DIM + bi;
-                    if (hist[idx].numerus == 0) continue;
+                    if (hist[idx].numerus == 0)
+                        continue;
 
                     int r = ri << HIST_SHIFT;
                     int g = gi << HIST_SHIFT;
@@ -187,18 +208,24 @@ static void paletam_genera(const uint8_t *rgb, int n_pix,
                     int v = (dim == 0) ? r : (dim == 1) ? g : b;
 
                     capsa_t *dest = (v <= medio) ? &lo : &hi_box;
-                    int r_lo = ri << HIST_SHIFT;
-                    int r_hi = r_lo + (1 << HIST_SHIFT) - 1;
-                    int g_lo = gi << HIST_SHIFT;
-                    int g_hi = g_lo + (1 << HIST_SHIFT) - 1;
-                    int b_lo = bi << HIST_SHIFT;
-                    int b_hi = b_lo + (1 << HIST_SHIFT) - 1;
-                    if (r_lo < dest->r_min) dest->r_min = r_lo;
-                    if (r_hi > dest->r_max) dest->r_max = r_hi;
-                    if (g_lo < dest->g_min) dest->g_min = g_lo;
-                    if (g_hi > dest->g_max) dest->g_max = g_hi;
-                    if (b_lo < dest->b_min) dest->b_min = b_lo;
-                    if (b_hi > dest->b_max) dest->b_max = b_hi;
+                    int r_lo      = ri << HIST_SHIFT;
+                    int r_hi      = r_lo + (1 << HIST_SHIFT) - 1;
+                    int g_lo      = gi << HIST_SHIFT;
+                    int g_hi      = g_lo + (1 << HIST_SHIFT) - 1;
+                    int b_lo      = bi << HIST_SHIFT;
+                    int b_hi      = b_lo + (1 << HIST_SHIFT) - 1;
+                    if (r_lo < dest->r_min)
+                        dest->r_min = r_lo;
+                    if (r_hi > dest->r_max)
+                        dest->r_max = r_hi;
+                    if (g_lo < dest->g_min)
+                        dest->g_min = g_lo;
+                    if (g_hi > dest->g_max)
+                        dest->g_max = g_hi;
+                    if (b_lo < dest->b_min)
+                        dest->b_min = b_lo;
+                    if (b_hi > dest->b_max)
+                        dest->b_max = b_hi;
                     dest->r_sum += hist[idx].r_sum;
                     dest->g_sum += hist[idx].g_sum;
                     dest->b_sum += hist[idx].b_sum;
@@ -215,7 +242,7 @@ static void paletam_genera(const uint8_t *rgb, int n_pix,
             continue;
         }
 
-        capsae[optima] = lo;
+        capsae[optima]     = lo;
         capsae[n_capsarum] = hi_box;
         n_capsarum++;
     }
@@ -250,17 +277,21 @@ static const int bayer_8x8[8][8] = {
     { 63, 31, 55, 23, 61, 29, 53, 21 }
 };
 
-static int indicem_proximum(const uint8_t paleta[][3], int n,
-                             int r, int g, int b)
-{
-    int optimus = 0;
+static int indicem_proximum(
+    const uint8_t paleta[][3], int n,
+    int r, int g, int b
+) {
+    int optimus  = 0;
     int min_dist = 0x7FFFFFFF;
     for (int i = 0; i < n; i++) {
-        int dr = r - paleta[i][0];
-        int dg = g - paleta[i][1];
-        int db = b - paleta[i][2];
+        int dr   = r - paleta[i][0];
+        int dg   = g - paleta[i][1];
+        int db   = b - paleta[i][2];
         int dist = dr * dr + dg * dg + db * db;
-        if (dist < min_dist) { min_dist = dist; optimus = i; }
+        if (dist < min_dist) {
+            min_dist = dist;
+            optimus  = i;
+        }
     }
     return optimus;
 }
@@ -286,9 +317,10 @@ static void celer_initia(celer_tabula_t *ct)
     memset(ct->repleta, 0, sizeof(ct->repleta));
 }
 
-static int celer_quaere(celer_tabula_t *ct, const uint8_t paleta[][3],
-                         int n, int r, int g, int b)
-{
+static int celer_quaere(
+    celer_tabula_t *ct, const uint8_t paleta[][3],
+    int n, int r, int g, int b
+) {
     int ri = r >> CELER_SHIFT;
     int gi = g >> CELER_SHIFT;
     int bi = b >> CELER_SHIFT;
@@ -374,7 +406,8 @@ static int lzw_quaere(lzw_t *s, int praef, uint8_t suff)
 
 static void lzw_insere(lzw_t *s, int praef, uint8_t suff)
 {
-    if (s->prox_codex >= LZW_MAX_CODEX) return;
+    if (s->prox_codex >= LZW_MAX_CODEX)
+        return;
     int h = ((praef << 8) ^ suff) % LZW_HASH_MAG;
     while (s->hash_codex[h] >= 0)
         h = (h + 1) % LZW_HASH_MAG;
@@ -392,7 +425,7 @@ static void lzw_comprime(FILE *plica, const uint8_t *data, int n)
 {
     lzw_t s;
     memset(&s, 0, sizeof(s));
-    s.plica = plica;
+    s.plica        = plica;
     s.cod_purgandi = 1 << LZW_MIN_MAG;
     s.cod_finis    = s.cod_purgandi + 1;
     memset(s.hash_codex, -1, sizeof(s.hash_codex));
@@ -406,7 +439,7 @@ static void lzw_comprime(FILE *plica, const uint8_t *data, int n)
     int w = data[0]; /* current string code */
     for (int i = 1; i < n; i++) {
         uint8_t k = data[i];
-        int wk = lzw_quaere(&s, w, k);
+        int wk    = lzw_quaere(&s, w, k);
         if (wk >= 0) {
             w = wk;
         } else {
@@ -446,13 +479,16 @@ static void scribe_u16le(FILE *f, uint16_t v)
  * interfacies publica
  * ================================================================ */
 
-pfr_gif_t *pfr_gif_initia(const char *via, int lat, int alt,
-                            int mora_cs, int scala)
-{
-    if (scala < 1) scala = 1;
+pfr_gif_t *pfr_gif_initia(
+    const char *via, int lat, int alt,
+    int mora_cs, int scala
+) {
+    if (scala < 1)
+        scala = 1;
 
     pfr_gif_t *g = (pfr_gif_t *)calloc(1, sizeof(*g));
-    if (!g) return NULL;
+    if (!g)
+        return NULL;
     g->lat_fons = lat;
     g->alt_fons = alt;
     g->scala    = scala;
@@ -461,7 +497,10 @@ pfr_gif_t *pfr_gif_initia(const char *via, int lat, int alt,
     g->mora_cs  = mora_cs;
 
     g->plica = fopen(via, "wb");
-    if (!g->plica) { free(g); return NULL; }
+    if (!g->plica) {
+        free(g);
+        return NULL;
+    }
 
     /* caput GIF89a — scribetur post paletam generatam */
     /* reserva spatium, revolvimus post primam tabulam */
@@ -491,7 +530,9 @@ static void gif_caput_scribe(pfr_gif_t *g)
             fputc(g->paleta[i][1], f);
             fputc(g->paleta[i][2], f);
         } else {
-            fputc(0, f); fputc(0, f); fputc(0, f);
+            fputc(0, f);
+            fputc(0, f);
+            fputc(0, f);
         }
     }
 
@@ -508,25 +549,29 @@ static void gif_caput_scribe(pfr_gif_t *g)
 
 int pfr_gif_tabulam_adde(pfr_gif_t *g, const uint32_t *pixels)
 {
-    if (!g || !pixels) return -1;
+    if (!g || !pixels)
+        return -1;
 
     int n_pix = g->lat * g->alt;
 
     /* scala et converte ARGB -> RGB */
     uint8_t *rgb = (uint8_t *)malloc((size_t)n_pix * 3);
-    if (!rgb) return -1;
+    if (!rgb)
+        return -1;
 
     for (int y = 0; y < g->alt; y++) {
         for (int x = 0; x < g->lat; x++) {
             /* media pixelorum in scala x scala area */
             int r_sum = 0, g_sum = 0, b_sum = 0;
-            int cnt = 0;
+            int cnt   = 0;
             for (int sy = 0; sy < g->scala; sy++) {
                 int fy = y * g->scala + sy;
-                if (fy >= g->alt_fons) continue;
+                if (fy >= g->alt_fons)
+                    continue;
                 for (int sx = 0; sx < g->scala; sx++) {
                     int fx = x * g->scala + sx;
-                    if (fx >= g->lat_fons) continue;
+                    if (fx >= g->lat_fons)
+                        continue;
                     uint32_t px = pixels[fy * g->lat_fons + fx];
                     r_sum += (px >> 16) & 0xFF;
                     g_sum += (px >> 8)  & 0xFF;
@@ -535,7 +580,7 @@ int pfr_gif_tabulam_adde(pfr_gif_t *g, const uint32_t *pixels)
                 }
             }
             if (cnt > 0) {
-                int idx = (y * g->lat + x) * 3;
+                int idx      = (y * g->lat + x) * 3;
                 rgb[idx + 0] = (uint8_t)(r_sum / cnt);
                 rgb[idx + 1] = (uint8_t)(g_sum / cnt);
                 rgb[idx + 2] = (uint8_t)(b_sum / cnt);
@@ -552,10 +597,17 @@ int pfr_gif_tabulam_adde(pfr_gif_t *g, const uint32_t *pixels)
 
     /* converte in indices paletae cum Bayer dithering */
     uint8_t *indices = (uint8_t *)malloc((size_t)n_pix);
-    if (!indices) { free(rgb); return -1; }
+    if (!indices) {
+        free(rgb);
+        return -1;
+    }
 
     celer_tabula_t *ct = (celer_tabula_t *)malloc(sizeof(celer_tabula_t));
-    if (!ct) { free(indices); free(rgb); return -1; }
+    if (!ct) {
+        free(indices);
+        free(rgb);
+        return -1;
+    }
     celer_initia(ct);
 
     for (int y = 0; y < g->alt; y++) {
@@ -566,11 +618,21 @@ int pfr_gif_tabulam_adde(pfr_gif_t *g, const uint32_t *pixels)
             int r = (int)(rgb[idx + 0] + threshold * spread);
             int gv = (int)(rgb[idx + 1] + threshold * spread);
             int b = (int)(rgb[idx + 2] + threshold * spread);
-            if (r < 0) r = 0; if (r > 255) r = 255;
-            if (gv < 0) gv = 0; if (gv > 255) gv = 255;
-            if (b < 0) b = 0; if (b > 255) b = 255;
+            if (r < 0)
+                r = 0;
+            if (r > 255)
+                r = 255;
+            if (gv < 0)
+                gv = 0;
+            if (gv > 255)
+                gv = 255;
+            if (b < 0)
+                b = 0;
+            if (b > 255)
+                b = 255;
             indices[y * g->lat + x] = (uint8_t)celer_quaere(
-                ct, g->paleta, PALETA_MAG, r, gv, b);
+                ct, g->paleta, PALETA_MAG, r, gv, b
+            );
         }
     }
 
@@ -607,7 +669,8 @@ int pfr_gif_tabulam_adde(pfr_gif_t *g, const uint32_t *pixels)
 
 void pfr_gif_fini(pfr_gif_t *g)
 {
-    if (!g) return;
+    if (!g)
+        return;
     if (g->plica) {
         fputc(0x3B, g->plica);     /* GIF trailer */
         fclose(g->plica);
