@@ -255,6 +255,20 @@ void     pfr_pausa(pfr_u32 ms);
  * inscriptores — GIF et MP4
  * ================================================================ */
 
+/* modi quantisationis colorum */
+typedef enum {
+    PFR_QUANT_MEDIANA    = 0,   /* median-cut (defectus) */
+    PFR_QUANT_OCTARBORIS = 1,   /* octree */
+    PFR_QUANT_KMEDIA     = 2    /* k-means */
+} pfr_quant_t;
+
+/* modi dithering */
+typedef enum {
+    PFR_DITHER_BAYER  = 0,      /* Bayer 8x8 ordinatus (defectus) */
+    PFR_DITHER_FLOYD  = 1,      /* Floyd-Steinberg error diffusion */
+    PFR_DITHER_NULLUM = 2       /* sine dithering */
+} pfr_dither_t;
+
 typedef struct pfr_gif pfr_gif_t;
 typedef struct pfr_mp4 pfr_mp4_t;
 
@@ -270,6 +284,7 @@ pfr_gif_t *pfr_gif_initia(
 );
 int  pfr_gif_tabulam_adde(pfr_gif_t *g, const uint32_t *pixels);
 void pfr_gif_fini(pfr_gif_t *g);
+void pfr_gif_modum_pone(pfr_gif_t *g, pfr_quant_t quant, pfr_dither_t dither);
 
 /*
  * pfr_mp4_initia — inscriptorem MP4 (H.264 Baseline) creat.

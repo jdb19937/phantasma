@@ -579,6 +579,135 @@ static const char *proba_nigra(void)
 }
 
 /* ================================================================
+ * probationes modorum — quantisatio et dithering
+ * ================================================================ */
+
+static uint32_t *pixels_gradiens(int lat, int alt)
+{
+    uint32_t *pix = (uint32_t *)malloc((size_t)lat * alt * sizeof(uint32_t));
+    if (!pix)
+        return NULL;
+    for (int y = 0; y < alt; y++)
+        for (int x = 0; x < lat; x++)
+            pix[y * lat + x] = 0xFF000000 |
+                ((uint32_t)(x * 4) << 16) |
+                ((uint32_t)(y * 4) << 8) |
+                (uint32_t)((x + y) * 2);
+    return pix;
+}
+
+static const char *proba_modus(int quant, int dither)
+{
+    const char *via = viam_novam();
+    pfr_gif_t *g    = pfr_gif_initia(via, 64, 64, 3, 1);
+    if (!g)
+        return "initia falsum";
+
+    pfr_gif_modum_pone(g, (pfr_quant_t)quant, (pfr_dither_t)dither);
+
+    uint32_t *pix = pixels_gradiens(64, 64);
+    if (!pix) {
+        pfr_gif_fini(g);
+        plicam_dele(via);
+        return "memoria";
+    }
+
+    int res = pfr_gif_tabulam_adde(g, pix);
+    free(pix);
+    if (res != 0) {
+        pfr_gif_fini(g);
+        plicam_dele(via);
+        return "adde falsum";
+    }
+
+    pfr_gif_fini(g);
+    if (!est_gif89a(via)) {
+        plicam_dele(via);
+        return "non est GIF89a";
+    }
+    long mag = plica_magnitudo(via);
+    plicam_dele(via);
+    if (mag <= 0)
+        return "plica vacua";
+    return NULL;
+}
+
+static const char *proba_octarboris_bayer(void)
+{ return proba_modus(PFR_QUANT_OCTARBORIS, PFR_DITHER_BAYER); }
+
+static const char *proba_octarboris_floyd(void)
+{ return proba_modus(PFR_QUANT_OCTARBORIS, PFR_DITHER_FLOYD); }
+
+static const char *proba_octarboris_nullum(void)
+{ return proba_modus(PFR_QUANT_OCTARBORIS, PFR_DITHER_NULLUM); }
+
+static const char *proba_kmedia_bayer(void)
+{ return proba_modus(PFR_QUANT_KMEDIA, PFR_DITHER_BAYER); }
+
+static const char *proba_kmedia_floyd(void)
+{ return proba_modus(PFR_QUANT_KMEDIA, PFR_DITHER_FLOYD); }
+
+static const char *proba_kmedia_nullum(void)
+{ return proba_modus(PFR_QUANT_KMEDIA, PFR_DITHER_NULLUM); }
+
+static const char *proba_mediana_floyd(void)
+{ return proba_modus(PFR_QUANT_MEDIANA, PFR_DITHER_FLOYD); }
+
+static const char *proba_mediana_nullum(void)
+{ return proba_modus(PFR_QUANT_MEDIANA, PFR_DITHER_NULLUM); }
+
+static const char *proba_omnes_modi(void)
+{
+    for (int q = 0; q <= 2; q++)
+        for (int d = 0; d <= 2; d++) {
+            const char *err = proba_modus(q, d);
+            if (err)
+                return err;
+        }
+    return NULL;
+}
+
+/* --- plures tabulae cum modis diversis --- */
+
+static const char *proba_plures_octarboris(void)
+{
+    const char *via = viam_novam();
+    pfr_gif_t *g    = pfr_gif_initia(via, 64, 64, 3, 1);
+    if (!g)
+        return "initia falsum";
+
+    pfr_gif_modum_pone(g, PFR_QUANT_OCTARBORIS, PFR_DITHER_FLOYD);
+
+    for (int i = 0; i < 5; i++) {
+        uint32_t *pix = pixels_gradiens(64, 64);
+        if (!pix) {
+            pfr_gif_fini(g);
+            plicam_dele(via);
+            return "memoria";
+        }
+        /* muta colores per frame */
+        for (int j = 0; j < 64 * 64; j++)
+            pix[j] = (pix[j] + (uint32_t)(i * 0x111111)) | 0xFF000000;
+
+        int res = pfr_gif_tabulam_adde(g, pix);
+        free(pix);
+        if (res != 0) {
+            pfr_gif_fini(g);
+            plicam_dele(via);
+            return "adde falsum";
+        }
+    }
+
+    pfr_gif_fini(g);
+    if (!est_gif89a(via)) {
+        plicam_dele(via);
+        return "non est GIF89a";
+    }
+    plicam_dele(via);
+    return NULL;
+}
+
+/* ================================================================
  * principium
  * ================================================================ */
 
@@ -617,7 +746,19 @@ int main(void)
     PROBA("mora diversa",          proba_mora_diversa());
 
     fprintf(stderr, "\n— celeritas —\n");
-    PROBA("celeritas (5×384x384)", proba_celeritas());
+    PROBA("celeritas (5x384x384)", proba_celeritas());
+
+    fprintf(stderr, "\n— modi quantisationis —\n");
+    PROBA("octarboris + bayer",    proba_octarboris_bayer());
+    PROBA("octarboris + floyd",    proba_octarboris_floyd());
+    PROBA("octarboris + nullum",   proba_octarboris_nullum());
+    PROBA("kmedia + bayer",        proba_kmedia_bayer());
+    PROBA("kmedia + floyd",        proba_kmedia_floyd());
+    PROBA("kmedia + nullum",       proba_kmedia_nullum());
+    PROBA("mediana + floyd",       proba_mediana_floyd());
+    PROBA("mediana + nullum",      proba_mediana_nullum());
+    PROBA("omnes modi (3x3)",      proba_omnes_modi());
+    PROBA("plures tab octarboris", proba_plures_octarboris());
 
     fprintf(
         stderr, "\n=== Summa: %d/%d rectae",

@@ -18,16 +18,22 @@ CC      ?= cc
 AR      ?= ar
 CFLAGS  ?= -Wall -Wextra -O2
 
-OBJECTA     = phantasma.o gif.o mp4.o computo.o
+OBJECTA     = phantasma.o gif.o quantisatio.o perturbatio.o mp4.o computo.o
 BIBLIOTHECA = libphantasma.a
-CAPITA      = phantasma.h computo.h
+CAPITA      = phantasma.h computo.h quantisatio.h perturbatio.h
 
 omnia: $(BIBLIOTHECA) nexus_phantasma
 
 phantasma.o: phantasma_plat.c phantasma_darwin.m phantasma_linux.c $(CAPITA)
 	$(CC) $(CFLAGS) `case $$(uname -s) in Darwin) echo "-x objective-c";; esac` -c phantasma_plat.c -o phantasma.o
 
-gif.o: gif.c $(CAPITA)
+quantisatio.o: quantisatio.c quantisatio.h
+	$(CC) $(CFLAGS) -pedantic -std=c99 -c quantisatio.c -o quantisatio.o
+
+perturbatio.o: perturbatio.c perturbatio.h
+	$(CC) $(CFLAGS) -pedantic -std=c99 -c perturbatio.c -o perturbatio.o
+
+gif.o: gif.c quantisatio.h perturbatio.h $(CAPITA)
 	$(CC) $(CFLAGS) -pedantic -std=c99 -c gif.c -o gif.o
 
 mp4.o: mp4.c $(CAPITA)
@@ -67,8 +73,8 @@ proba_mp4: mp4.o proba_mp4.o
 proba_mp4.o: proba_mp4.c $(CAPITA)
 	$(CC) $(CFLAGS) -pedantic -std=c99 -c proba_mp4.c -o proba_mp4.o
 
-proba_gif: gif.o proba_gif.o
-	$(CC) proba_gif.o gif.o -lm -o proba_gif
+proba_gif: gif.o quantisatio.o perturbatio.o proba_gif.o
+	$(CC) proba_gif.o gif.o quantisatio.o perturbatio.o -lm -o proba_gif
 	./proba_gif
 
 proba_gif.o: proba_gif.c $(CAPITA)
@@ -85,7 +91,8 @@ purga:
 	rm -f $(OBJECTA) $(BIBLIOTHECA) nexus_phantasma \
 	    proba.o proba proba_computo.o proba_computo \
 	    proba_mp4.o proba_mp4 proba_gif.o proba_gif \
-	    proba_nn.o proba_nn
+	    proba_nn.o proba_nn \
+	    quantisatio.o perturbatio.o
 
 linte:
 	insinulint -c *.c *.h
