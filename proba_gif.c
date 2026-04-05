@@ -660,10 +660,10 @@ static const char *proba_omnes_modi(void)
 {
     for (int q = 0; q <= 2; q++)
         for (int d = 0; d <= 2; d++) {
-            const char *err = proba_modus(q, d);
-            if (err)
-                return err;
-        }
+        const char *err = proba_modus(q, d);
+        if (err)
+            return err;
+    }
     return NULL;
 }
 

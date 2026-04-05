@@ -105,15 +105,24 @@ void indices_bayer(
 
     for (int y = 0; y < alt; y++) {
         for (int x = 0; x < lat; x++) {
-            int idx = (y * lat + x) * 3;
+            int idx       = (y * lat + x) * 3;
             double limen  = (bayer_8x8[y & 7][x & 7] / 64.0) - 0.5;
             double campus = 24.0;
-            int r  = (int)(rgb[idx + 0] + limen * campus);
-            int gv = (int)(rgb[idx + 1] + limen * campus);
-            int b  = (int)(rgb[idx + 2] + limen * campus);
-            if (r < 0)   r = 0;   if (r > 255)   r = 255;
-            if (gv < 0)  gv = 0;  if (gv > 255)  gv = 255;
-            if (b < 0)   b = 0;   if (b > 255)   b = 255;
+            int r         = (int)(rgb[idx + 0] + limen * campus);
+            int gv        = (int)(rgb[idx + 1] + limen * campus);
+            int b         = (int)(rgb[idx + 2] + limen * campus);
+            if (r < 0)
+                r = 0;
+            if (r > 255)
+                r = 255;
+            if (gv < 0)
+                gv = 0;
+            if (gv > 255)
+                gv = 255;
+            if (b < 0)
+                b = 0;
+            if (b > 255)
+                b = 255;
             indices[y * lat + x] = (uint8_t)celer_quaere(
                 ct, paleta, n_pal, r, gv, b
             );
@@ -146,11 +155,11 @@ void indices_floyd(
         for (int x = 0; x < lat; x++) {
             int p  = (y * lat + x) * 3;
             int r  = alveus[p + 0] < 0 ? 0 :
-                    (alveus[p + 0] > 255 ? 255 : alveus[p + 0]);
+                (alveus[p + 0] > 255 ? 255 : alveus[p + 0]);
             int gv = alveus[p + 1] < 0 ? 0 :
-                    (alveus[p + 1] > 255 ? 255 : alveus[p + 1]);
+                (alveus[p + 1] > 255 ? 255 : alveus[p + 1]);
             int b  = alveus[p + 2] < 0 ? 0 :
-                    (alveus[p + 2] > 255 ? 255 : alveus[p + 2]);
+                (alveus[p + 2] > 255 ? 255 : alveus[p + 2]);
 
             int ci = indicem_proximum(paleta, n_pal, r, gv, b);
             indices[y * lat + x] = (uint8_t)ci;

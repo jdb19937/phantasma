@@ -36,12 +36,12 @@ static void histogrammum_aedifica(
 ) {
     memset(hist, 0, HIST_N * sizeof(hist_cella_t));
     for (int i = 0; i < n_pix; i++) {
-        int r  = rgb[i * 3 + 0];
-        int g  = rgb[i * 3 + 1];
-        int b  = rgb[i * 3 + 2];
+        int r = rgb[i * 3 + 0];
+        int g = rgb[i * 3 + 1];
+        int b = rgb[i * 3 + 2];
         int hi = (r >> HIST_SHIFT) * HIST_DIM * HIST_DIM +
-                 (g >> HIST_SHIFT) * HIST_DIM +
-                 (b >> HIST_SHIFT);
+            (g >> HIST_SHIFT) * HIST_DIM +
+            (b >> HIST_SHIFT);
         hist[hi].numerus++;
         hist[hi].r_sum += r;
         hist[hi].g_sum += g;
@@ -160,9 +160,12 @@ void paletam_genera(
         int gi_max = capsae[optima].g_max >> HIST_SHIFT;
         int bi_min = capsae[optima].b_min >> HIST_SHIFT;
         int bi_max = capsae[optima].b_max >> HIST_SHIFT;
-        if (ri_max >= HIST_DIM) ri_max = HIST_DIM - 1;
-        if (gi_max >= HIST_DIM) gi_max = HIST_DIM - 1;
-        if (bi_max >= HIST_DIM) bi_max = HIST_DIM - 1;
+        if (ri_max >= HIST_DIM)
+            ri_max = HIST_DIM - 1;
+        if (gi_max >= HIST_DIM)
+            gi_max = HIST_DIM - 1;
+        if (bi_max >= HIST_DIM)
+            bi_max = HIST_DIM - 1;
 
         for (int ri = ri_min; ri <= ri_max; ri++) {
             for (int gi = gi_min; gi <= gi_max; gi++) {
@@ -177,18 +180,24 @@ void paletam_genera(
                     int v = (dim == 0) ? r : (dim == 1) ? g : b;
 
                     capsa_t *dest = (v <= medio) ? &lo : &hi_box;
-                    int r_lo = ri << HIST_SHIFT;
-                    int r_hi = r_lo + (1 << HIST_SHIFT) - 1;
-                    int g_lo = gi << HIST_SHIFT;
-                    int g_hi = g_lo + (1 << HIST_SHIFT) - 1;
-                    int b_lo = bi << HIST_SHIFT;
-                    int b_hi = b_lo + (1 << HIST_SHIFT) - 1;
-                    if (r_lo < dest->r_min) dest->r_min = r_lo;
-                    if (r_hi > dest->r_max) dest->r_max = r_hi;
-                    if (g_lo < dest->g_min) dest->g_min = g_lo;
-                    if (g_hi > dest->g_max) dest->g_max = g_hi;
-                    if (b_lo < dest->b_min) dest->b_min = b_lo;
-                    if (b_hi > dest->b_max) dest->b_max = b_hi;
+                    int r_lo      = ri << HIST_SHIFT;
+                    int r_hi      = r_lo + (1 << HIST_SHIFT) - 1;
+                    int g_lo      = gi << HIST_SHIFT;
+                    int g_hi      = g_lo + (1 << HIST_SHIFT) - 1;
+                    int b_lo      = bi << HIST_SHIFT;
+                    int b_hi      = b_lo + (1 << HIST_SHIFT) - 1;
+                    if (r_lo < dest->r_min)
+                        dest->r_min = r_lo;
+                    if (r_hi > dest->r_max)
+                        dest->r_max = r_hi;
+                    if (g_lo < dest->g_min)
+                        dest->g_min = g_lo;
+                    if (g_hi > dest->g_max)
+                        dest->g_max = g_hi;
+                    if (b_lo < dest->b_min)
+                        dest->b_min = b_lo;
+                    if (b_hi > dest->b_max)
+                        dest->b_max = b_hi;
                     dest->r_sum += hist[idx].r_sum;
                     dest->g_sum += hist[idx].g_sum;
                     dest->b_sum += hist[idx].b_sum;
@@ -267,8 +276,8 @@ static void octa_insere(
     for (int d = 0; d < OCTA_PROF; d++) {
         int bit = (OCTA_PROF - 1) - d;
         int idx = ((ri >> bit) & 1) << 2 |
-                  ((gi >> bit) & 1) << 1 |
-                  ((bi >> bit) & 1);
+            ((gi >> bit) & 1) << 1 |
+            ((bi >> bit) & 1);
         if (!nod->filii[idx]) {
             nod->filii[idx] = octa_novum(arb);
             nod->n_filiorum++;
@@ -362,12 +371,14 @@ void paletam_genera_octarboris(
     for (int ri = 0; ri < HIST_DIM; ri++)
         for (int gi = 0; gi < HIST_DIM; gi++)
             for (int bi = 0; bi < HIST_DIM; bi++) {
-                int hi = ri * HIST_DIM * HIST_DIM + gi * HIST_DIM + bi;
-                if (hist[hi].numerus > 0)
-                    octa_insere(&arb, ri, gi, bi,
-                                hist[hi].r_sum, hist[hi].g_sum,
-                                hist[hi].b_sum, hist[hi].numerus);
-            }
+        int hi = ri * HIST_DIM * HIST_DIM + gi * HIST_DIM + bi;
+        if (hist[hi].numerus > 0)
+            octa_insere(
+                &arb, ri, gi, bi,
+                hist[hi].r_sum, hist[hi].g_sum,
+                hist[hi].b_sum, hist[hi].numerus
+            );
+    }
 
     octa_nodus_t **lista = (octa_nodus_t **)malloc(
         (size_t)arb.stag_pos * sizeof(octa_nodus_t *)
@@ -377,8 +388,10 @@ void paletam_genera_octarboris(
         octa_collige_internos(&arb.stagnum[0], 0, d, lista, &n_lista);
         if (n_lista == 0)
             continue;
-        qsort(lista, (size_t)n_lista, sizeof(octa_nodus_t *),
-              octa_comp_numerus);
+        qsort(
+            lista, (size_t)n_lista, sizeof(octa_nodus_t *),
+            octa_comp_numerus
+        );
         for (int i = 0; i < n_lista && arb.n_foliorum > n_colorum; i++)
             if (lista[i]->n_filiorum > 0)
                 octa_funde(&arb, lista[i]);
@@ -432,9 +445,9 @@ void paletam_genera_kmedia(
 
             int opt = 0, opt_dist = 0x7FFFFFFF;
             for (int c = 0; c < n_colorum; c++) {
-                int dr = cr - paleta[c][0];
-                int dg = cg - paleta[c][1];
-                int db = cb - paleta[c][2];
+                int dr   = cr - paleta[c][0];
+                int dg   = cg - paleta[c][1];
+                int db   = cb - paleta[c][2];
                 int dist = dr * dr + dg * dg + db * db;
                 if (dist < opt_dist) {
                     opt_dist = dist;
@@ -454,12 +467,14 @@ void paletam_genera_kmedia(
                 uint8_t nr = (uint8_t)(summa_r[c] / summa_n[c]);
                 uint8_t ng = (uint8_t)(summa_g[c] / summa_n[c]);
                 uint8_t nb = (uint8_t)(summa_b[c] / summa_n[c]);
-                if (nr != paleta[c][0] || ng != paleta[c][1] ||
-                    nb != paleta[c][2]) {
+                if (
+                    nr != paleta[c][0] || ng != paleta[c][1] ||
+                    nb != paleta[c][2]
+                ) {
                     paleta[c][0] = nr;
                     paleta[c][1] = ng;
                     paleta[c][2] = nb;
-                    mutata = 1;
+                    mutata       = 1;
                 }
             }
         }
