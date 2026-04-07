@@ -52,38 +52,35 @@ $(BIBLIOTHECA): $(OBJECTA)
 nexus_phantasma: $(BIBLIOTHECA)
 	@CC='$(CC)' CFLAGS='$(CFLAGS)' sh nexus_genera.sh > nexus_phantasma
 
-proba: $(BIBLIOTHECA) nexus_phantasma proba.o
-	$(CC) proba.o $(BIBLIOTHECA) `cat nexus_phantasma` -o proba
-	./proba
+proba: proba_prima proba_computo proba_mp4 proba_gif proba_nn
+	./proba_prima
+	./proba_computo
+	./proba_mp4
+	./proba_gif
+	./proba_nn
 
-proba.o: proba.c $(CAPITA)
-	$(CC) $(CFLAGS) -pedantic -std=c99 -c proba.c -o proba.o
+proba_prima: $(BIBLIOTHECA) nexus_phantasma proba_prima.o
+	$(CC) proba_prima.o $(BIBLIOTHECA) `cat nexus_phantasma` -o proba_prima
+proba_prima.o: proba_prima.c $(CAPITA)
+	$(CC) $(CFLAGS) -pedantic -std=c99 -c proba_prima.c -o proba_prima.o
 
 proba_computo: $(BIBLIOTHECA) nexus_phantasma proba_computo.o
 	$(CC) proba_computo.o $(BIBLIOTHECA) `cat nexus_phantasma` -lm -o proba_computo
-	./proba_computo
-
 proba_computo.o: proba_computo.c $(CAPITA)
 	$(CC) $(CFLAGS) -pedantic -std=c99 -c proba_computo.c -o proba_computo.o
 
 proba_mp4: mp4.o proba_mp4.o
 	$(CC) proba_mp4.o mp4.o -o proba_mp4
-	./proba_mp4
-
 proba_mp4.o: proba_mp4.c $(CAPITA)
 	$(CC) $(CFLAGS) -pedantic -std=c99 -c proba_mp4.c -o proba_mp4.o
 
 proba_gif: gif.o quantisatio.o perturbatio.o proba_gif.o
 	$(CC) proba_gif.o gif.o quantisatio.o perturbatio.o -lm -o proba_gif
-	./proba_gif
-
 proba_gif.o: proba_gif.c $(CAPITA)
 	$(CC) $(CFLAGS) -pedantic -std=c99 -c proba_gif.c -o proba_gif.o
 
 proba_nn: $(BIBLIOTHECA) nexus_phantasma proba_nn.o
 	$(CC) proba_nn.o $(BIBLIOTHECA) `cat nexus_phantasma` -lm -o proba_nn
-	./proba_nn
-
 proba_nn.o: proba_nn.c $(CAPITA)
 	$(CC) $(CFLAGS) -pedantic -std=c99 -c proba_nn.c -o proba_nn.o
 
@@ -97,7 +94,7 @@ colloca: omnia
 
 purga:
 	rm -f $(OBJECTA) $(BIBLIOTHECA) nexus_phantasma \
-	    proba.o proba proba_computo.o proba_computo \
+	    proba_prima.o proba_prima proba_computo.o proba_computo \
 	    proba_mp4.o proba_mp4 proba_gif.o proba_gif \
 	    proba_nn.o proba_nn \
 	    quantisatio.o perturbatio.o
@@ -105,4 +102,4 @@ purga:
 linte:
 	insinulint -c *.c *.h
 
-.PHONY: omnia colloca proba proba_computo proba_mp4 proba_gif proba_nn purga linte
+.PHONY: omnia colloca proba purga linte
