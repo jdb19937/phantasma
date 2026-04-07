@@ -167,6 +167,79 @@ __global__ static void kern_rope_f(float *v, int n, int pos)
     v[i + 1] = v0 * fci + v1 * fcr;
 }
 
+__global__ static void kern_attentio_f(
+    float *o, const float *q,
+    const float *cache_k, const float *cache_v,
+    float *att,
+    int d, int n_capita, int n_capita_kv,
+    int positio, int longitudo_max)
+{
+    extern __shared__ float scrip[];
+    int h = (int)blockIdx.x;
+    if (h >= n_capita) return;
+    int tid = (int)threadIdx.x;
+    int tgs = (int)blockDim.x;
+    int hd = d / n_capita;
+    int kv_dim = hd * n_capita_kv;
+    int kv_mul = n_capita / n_capita_kv;
+    int hkv = h / kv_mul;
+    float inv_s = rsqrtf((float)hd);
+    const float *q_h = q + h * hd;
+    float *att_h = att + h * longitudo_max;
+    float *o_h = o + h * hd;
+
+    /* Phase 1: scores att_h[t] = dot(q_h, k_t) * inv_s */
+    for (int t = tid; t <= positio; t += tgs) {
+        const float *k_t = cache_k + (size_t)t * kv_dim + hkv * hd;
+        float sc = 0.0f;
+        for (int i = 0; i < hd; i++)
+            sc += q_h[i] * k_t[i];
+        att_h[t] = sc * inv_s;
+    }
+    __syncthreads();
+
+    /* Phase 2: softmax in situ */
+    int len = positio + 1;
+    float mx = -1e30f;
+    for (int i = tid; i < len; i += tgs)
+        if (att_h[i] > mx) mx = att_h[i];
+    scrip[tid] = mx;
+    __syncthreads();
+    for (int s = tgs / 2; s > 0; s >>= 1) {
+        if (tid < s && scrip[tid + s] > scrip[tid])
+            scrip[tid] = scrip[tid + s];
+        __syncthreads();
+    }
+    mx = scrip[0];
+    __syncthreads();
+    float ss = 0.0f;
+    for (int i = tid; i < len; i += tgs) {
+        att_h[i] = expf(att_h[i] - mx);
+        ss += att_h[i];
+    }
+    scrip[tid] = ss;
+    __syncthreads();
+    for (int s = tgs / 2; s > 0; s >>= 1) {
+        if (tid < s) scrip[tid] += scrip[tid + s];
+        __syncthreads();
+    }
+    float inv = 1.0f / scrip[0];
+    __syncthreads();
+    for (int i = tid; i < len; i += tgs)
+        att_h[i] *= inv;
+    __syncthreads();
+
+    /* Phase 3: o_h[i] = sum_t att_h[t] * v_t[i] */
+    for (int i = tid; i < hd; i += tgs) {
+        float sum = 0.0f;
+        for (int t = 0; t <= positio; t++) {
+            const float *v_t = cache_v + (size_t)t * kv_dim + hkv * hd;
+            sum += att_h[t] * v_t[i];
+        }
+        o_h[i] = sum;
+    }
+}
+
 /* ================================================================
  * nuclei CUDA (double)
  * ================================================================ */
@@ -522,6 +595,21 @@ static int cuda_rope_f(void *v_gpu, int n, int pos)
     return (cudaDeviceSynchronize() == cudaSuccess) ? 0 : -1;
 }
 
+static int cuda_attentio_f(void *o_gpu, void *q_gpu,
+                           void *cache_k_gpu, void *cache_v_gpu,
+                           void *att_gpu,
+                           int d, int n_capita, int n_capita_kv,
+                           int positio, int longitudo_max)
+{
+    int tgs = 256;
+    kern_attentio_f<<<n_capita, tgs, tgs * sizeof(float)>>>(
+        (float*)o_gpu, (const float*)q_gpu,
+        (const float*)cache_k_gpu, (const float*)cache_v_gpu,
+        (float*)att_gpu,
+        d, n_capita, n_capita_kv, positio, longitudo_max);
+    return (cudaDeviceSynchronize() == cudaSuccess) ? 0 : -1;
+}
+
 /* ================================================================
  * internae CUDA double
  * ================================================================ */
@@ -679,6 +767,19 @@ extern "C" int pfr_attentio_f(float *o, const float *q,
                                 int positio, int longitudo_max)
 { return pfr_cpu_attentio_f(o, q, cache_k, cache_v, att, d, n_capita,
                               n_capita_kv, positio, longitudo_max); }
+
+extern "C" int pfr_gpu_attentio_f(void *o_gpu, void *q_gpu,
+                                    void *cache_k_gpu, void *cache_v_gpu,
+                                    void *att_gpu,
+                                    int d, int n_capita, int n_capita_kv,
+                                    int positio, int longitudo_max)
+{
+    if (!o_gpu || !q_gpu || !cache_k_gpu || !cache_v_gpu || !att_gpu)
+        return -1;
+    if (!cc.usar_gpu) return -1;
+    return cuda_attentio_f(o_gpu, q_gpu, cache_k_gpu, cache_v_gpu, att_gpu,
+                           d, n_capita, n_capita_kv, positio, longitudo_max);
+}
 
 /* ================================================================
  * pfr_*_d — conatur GPU; cadit ad CPU si non adest

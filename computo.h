@@ -324,4 +324,13 @@ int pfr_cpu_attentio_f(
     int positio, int longitudo_max
 );
 
+/* GPU attentio: manubria GPU (void*) pro omnibus buffris */
+int pfr_gpu_attentio_f(
+    void *o_gpu, void *q_gpu,
+    void *cache_k_gpu, void *cache_v_gpu,
+    void *att_gpu,
+    int d, int n_capita, int n_capita_kv,
+    int positio, int longitudo_max
+);
+
 #endif /* PFR_COMPUTO_H */

@@ -32,6 +32,7 @@ int pfr_attentio_f(
     n_capita_kv, positio, longitudo_max
 ); }
 
+
 #if defined(__APPLE__) && !defined(PHANTASMA_X11) && !defined(PFR_COMPUTO_CPU)
 #include "computo_metal.m"
 #else
@@ -405,6 +406,21 @@ int pfr_gpu_rope_f(pfr_vector_f_t *v, int positio)
     (void)v;
     (void)positio;
     return -1;
+}
+
+int pfr_gpu_attentio_f(
+    void *o_gpu, void *q_gpu,
+    void *cache_k_gpu, void *cache_v_gpu,
+    void *att_gpu,
+    int d, int n_capita, int n_capita_kv,
+    int positio, int longitudo_max
+) {
+    return pfr_cpu_attentio_f(
+        (float *)o_gpu, (const float *)q_gpu,
+        (const float *)cache_k_gpu, (const float *)cache_v_gpu,
+        (float *)att_gpu,
+        d, n_capita, n_capita_kv, positio, longitudo_max
+    );
 }
 
 #endif

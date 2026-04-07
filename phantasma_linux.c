@@ -343,8 +343,8 @@ static void x11_eventum_convertere(XEvent *xe)
         }
         /* plectra 1-3 */
         if (xe->xbutton.button >= 1 && xe->xbutton.button <= 3) {
-            int mx = xe->xbutton.x;
-            int my = xe->xbutton.y;
+            int mx     = xe->xbutton.x;
+            int my     = xe->xbutton.y;
             ph.muris_x = mx;
             ph.muris_y = my;
             pfr_eventus_t se;

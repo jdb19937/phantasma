@@ -207,8 +207,10 @@ const pfr_u8 *pfr_claves_status(int *numerus)
 
 void pfr_muris_positio(int *x, int *y)
 {
-    if (x) *x = ph.muris_x;
-    if (y) *y = ph.muris_y;
+    if (x)
+        *x = ph.muris_x;
+    if (y)
+        *y = ph.muris_y;
 }
 
 /* ================================================================

@@ -228,6 +228,85 @@ static const char *fons_msl =
     "    float v0 = v[i], v1 = v[i + 1];\n"
     "    v[i]     = v0 * fcr - v1 * fci;\n"
     "    v[i + 1] = v0 * fci + v1 * fcr;\n"
+    "}\n"
+    "\n"
+    "/* Attentio causalis multi-capitis (unum threadgroup per caput) */\n"
+    "kernel void kern_attentio(\n"
+    "    device float* o [[buffer(0)]],\n"
+    "    device const float* q [[buffer(1)]],\n"
+    "    device const float* cache_k [[buffer(2)]],\n"
+    "    device const float* cache_v [[buffer(3)]],\n"
+    "    device float* att [[buffer(4)]],\n"
+    "    constant int& d [[buffer(5)]],\n"
+    "    constant int& n_capita [[buffer(6)]],\n"
+    "    constant int& n_capita_kv [[buffer(7)]],\n"
+    "    constant int& positio [[buffer(8)]],\n"
+    "    constant int& longitudo_max [[buffer(9)]],\n"
+    "    threadgroup float* scrip [[threadgroup(0)]],\n"
+    "    uint tid [[thread_index_in_threadgroup]],\n"
+    "    uint tgs [[threads_per_threadgroup]],\n"
+    "    uint bid [[threadgroup_position_in_grid]])\n"
+    "{\n"
+    "    int h = (int)bid;\n"
+    "    if (h >= n_capita) return;\n"
+    "    int hd = d / n_capita;\n"
+    "    int kv_dim = hd * n_capita_kv;\n"
+    "    int kv_mul = n_capita / n_capita_kv;\n"
+    "    int hkv = h / kv_mul;\n"
+    "    float inv_s = rsqrt((float)hd);\n"
+    "    device const float* q_h = q + h * hd;\n"
+    "    device float* att_h = att + h * longitudo_max;\n"
+    "    device float* o_h = o + h * hd;\n"
+    "\n"
+    "    /* Phase 1: scores att_h[t] = dot(q_h, k_t) * inv_s */\n"
+    "    for (int t = (int)tid; t <= positio; t += (int)tgs) {\n"
+    "        device const float* k_t = cache_k + t * kv_dim + hkv * hd;\n"
+    "        float sc = 0.0;\n"
+    "        for (int i = 0; i < hd; i++)\n"
+    "            sc += q_h[i] * k_t[i];\n"
+    "        att_h[t] = sc * inv_s;\n"
+    "    }\n"
+    "    threadgroup_barrier(mem_flags::mem_device_and_threadgroup);\n"
+    "\n"
+    "    /* Phase 2: softmax in situ */\n"
+    "    int len = positio + 1;\n"
+    "    float mx = -1e30;\n"
+    "    for (int i = (int)tid; i < len; i += (int)tgs)\n"
+    "        mx = max(mx, att_h[i]);\n"
+    "    scrip[tid] = mx;\n"
+    "    threadgroup_barrier(mem_flags::mem_threadgroup);\n"
+    "    for (uint s = tgs >> 1; s > 0; s >>= 1) {\n"
+    "        if (tid < s) scrip[tid] = max(scrip[tid], scrip[tid + s]);\n"
+    "        threadgroup_barrier(mem_flags::mem_threadgroup);\n"
+    "    }\n"
+    "    mx = scrip[0];\n"
+    "    threadgroup_barrier(mem_flags::mem_threadgroup);\n"
+    "    float ss = 0.0;\n"
+    "    for (int i = (int)tid; i < len; i += (int)tgs) {\n"
+    "        att_h[i] = exp(att_h[i] - mx);\n"
+    "        ss += att_h[i];\n"
+    "    }\n"
+    "    scrip[tid] = ss;\n"
+    "    threadgroup_barrier(mem_flags::mem_threadgroup);\n"
+    "    for (uint s = tgs >> 1; s > 0; s >>= 1) {\n"
+    "        if (tid < s) scrip[tid] += scrip[tid + s];\n"
+    "        threadgroup_barrier(mem_flags::mem_threadgroup);\n"
+    "    }\n"
+    "    float inv = 1.0 / scrip[0];\n"
+    "    threadgroup_barrier(mem_flags::mem_threadgroup);\n"
+    "    for (int i = (int)tid; i < len; i += (int)tgs)\n"
+    "        att_h[i] *= inv;\n"
+    "    threadgroup_barrier(mem_flags::mem_device_and_threadgroup);\n"
+    "\n"
+    "    /* Phase 3: o_h[i] = sum_t att_h[t] * v_t[i] */\n"
+    "    for (int i = (int)tid; i < hd; i += (int)tgs) {\n"
+    "        float sum = 0.0;\n"
+    "        for (int t = 0; t <= positio; t++) {\n"
+    "            device const float* v_t = cache_v + t * kv_dim + hkv * hd;\n"
+    "            sum += att_h[t] * v_t[i];\n"
+    "        }\n"
+    "        o_h[i] = sum;\n"
+    "    }\n"
     "}\n";
 
 /* ================================================================
@@ -245,7 +324,8 @@ static const char *fons_msl =
 #define MC_SWIGLU       8
 #define MC_SOFTMAX      9
 #define MC_ROPE        10
-#define MC_N_PLENA     11
+#define MC_ATTENTIO    11
+#define MC_N_PLENA     12
 
 static struct {
     id<MTLDevice>               machina;
@@ -318,7 +398,8 @@ int pfr_computo_initia(void)
             "kern_scalare", "kern_axpy",
             "kern_matvec_trans", "kern_ger",
             "kern_rmsnorm", "kern_swiglu",
-            "kern_softmax", "kern_rope"
+            "kern_softmax", "kern_rope",
+            "kern_attentio"
         };
         int ok = 1;
         for (int i = 0; i < MC_N_PLENA; i++) {
@@ -780,6 +861,37 @@ static int metal_rope(void *v_gpu, int n, int pos)
     return 0;
 }
 
+static int metal_attentio(void *o_gpu, void *q_gpu,
+                          void *cache_k_gpu, void *cache_v_gpu,
+                          void *att_gpu,
+                          int d, int n_capita, int n_capita_kv,
+                          int positio, int longitudo_max)
+{
+    @autoreleasepool {
+        id<MTLCommandBuffer>         cb  = [mc.coda commandBuffer];
+        id<MTLComputeCommandEncoder> enc = [cb computeCommandEncoder];
+        [enc setComputePipelineState:mc.plena[MC_ATTENTIO]];
+        [enc setBuffer:mc_id_buffer(o_gpu)       offset:0 atIndex:0];
+        [enc setBuffer:mc_id_buffer(q_gpu)       offset:0 atIndex:1];
+        [enc setBuffer:mc_id_buffer(cache_k_gpu) offset:0 atIndex:2];
+        [enc setBuffer:mc_id_buffer(cache_v_gpu) offset:0 atIndex:3];
+        [enc setBuffer:mc_id_buffer(att_gpu)     offset:0 atIndex:4];
+        [enc setBytes:&d              length:sizeof(int) atIndex:5];
+        [enc setBytes:&n_capita       length:sizeof(int) atIndex:6];
+        [enc setBytes:&n_capita_kv    length:sizeof(int) atIndex:7];
+        [enc setBytes:&positio        length:sizeof(int) atIndex:8];
+        [enc setBytes:&longitudo_max  length:sizeof(int) atIndex:9];
+        NSUInteger tgs = 256;
+        [enc setThreadgroupMemoryLength:tgs * sizeof(float) atIndex:0];
+        MTLSize t = MTLSizeMake(tgs, 1, 1);
+        MTLSize g = MTLSizeMake((NSUInteger)n_capita, 1, 1);
+        [enc dispatchThreadgroups:g threadsPerThreadgroup:t];
+        [enc endEncoding];
+        mc_exsequere(cb);
+    }
+    return 0;
+}
+
 /* ================================================================
  * pfr_*_f — conatur GPU; cadit ad CPU si non adest
  * ================================================================ */
@@ -997,6 +1109,19 @@ int pfr_gpu_rope_f(pfr_vector_f_t *v, int positio)
     if (!v) return -1;
     if (!mc.usar_gpu || !v->gpu) return -1;
     return metal_rope(v->gpu, v->n, positio);
+}
+
+int pfr_gpu_attentio_f(void *o_gpu, void *q_gpu,
+                       void *cache_k_gpu, void *cache_v_gpu,
+                       void *att_gpu,
+                       int d, int n_capita, int n_capita_kv,
+                       int positio, int longitudo_max)
+{
+    if (!o_gpu || !q_gpu || !cache_k_gpu || !cache_v_gpu || !att_gpu)
+        return -1;
+    if (!mc.usar_gpu) return -1;
+    return metal_attentio(o_gpu, q_gpu, cache_k_gpu, cache_v_gpu, att_gpu,
+                          d, n_capita, n_capita_kv, positio, longitudo_max);
 }
 
 /* gpu_*_d — semper fallit: Metal non sustinet double in GPU */
