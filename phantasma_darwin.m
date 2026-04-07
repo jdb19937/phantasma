@@ -33,6 +33,10 @@ static struct {
 
     /* status clavium */
     pfr_u8 claves[PFR_SC_NUMERUS];
+
+    /* positio muris */
+    int muris_x;
+    int muris_y;
 } ph;
 
 /* forward declarations pro classibus Cocoa */
@@ -173,6 +177,70 @@ static int mac_ad_symbolum(NSEvent *e)
         se.rota.y = dy > 0 ? 1 : -1;
         coda_insere(&se);
     }
+}
+
+- (void)mouseDown:(NSEvent *)e
+{
+    NSPoint pt = [self convertPoint:[e locationInWindow] fromView:nil];
+    int mx = (int)pt.x;
+    int my = (int)pt.y;
+    ph.muris_x = mx;
+    ph.muris_y = my;
+
+    pfr_eventus_t se;
+    memset(&se, 0, sizeof(se));
+    se.typus         = PFR_MURIS_INF;
+    se.muris.typus   = PFR_MURIS_INF;
+    se.muris.tempus  = pfr_tempus();
+    se.muris.x       = mx;
+    se.muris.y       = my;
+    se.muris.plectrum = 1;
+    coda_insere(&se);
+}
+
+- (void)rightMouseDown:(NSEvent *)e
+{
+    NSPoint pt = [self convertPoint:[e locationInWindow] fromView:nil];
+    int mx = (int)pt.x;
+    int my = (int)pt.y;
+
+    pfr_eventus_t se;
+    memset(&se, 0, sizeof(se));
+    se.typus         = PFR_MURIS_INF;
+    se.muris.typus   = PFR_MURIS_INF;
+    se.muris.tempus  = pfr_tempus();
+    se.muris.x       = mx;
+    se.muris.y       = my;
+    se.muris.plectrum = 3;
+    coda_insere(&se);
+}
+
+- (void)mouseMoved:(NSEvent *)e
+{
+    NSPoint pt = [self convertPoint:[e locationInWindow] fromView:nil];
+    ph.muris_x = (int)pt.x;
+    ph.muris_y = (int)pt.y;
+}
+
+- (void)mouseDragged:(NSEvent *)e
+{
+    [self mouseMoved:e];
+}
+
+- (void)updateTrackingAreas
+{
+    [super updateTrackingAreas];
+    for (NSTrackingArea *area in self.trackingAreas)
+        [self removeTrackingArea:area];
+    NSTrackingArea *ta = [[NSTrackingArea alloc]
+        initWithRect:self.bounds
+             options:(NSTrackingMouseMoved
+                    | NSTrackingActiveAlways
+                    | NSTrackingInVisibleRect)
+               owner:self
+            userInfo:nil];
+    [self addTrackingArea:ta];
+    [ta release];
 }
 
 @end

@@ -55,6 +55,8 @@ typedef uint8_t  pfr_u8;
 #define PFR_CLAVIS_INF      0x02    /* clavis pressa (infra) */
 #define PFR_CLAVIS_SUR      0x03    /* clavis missa (sursum) */
 #define PFR_ROTA_MURIS      0x04    /* rota muris */
+#define PFR_MURIS_INF       0x05    /* plectrum muris pressum (infra) */
+#define PFR_MURIS_MOTUS     0x06    /* muris motus */
 
 /* ================================================================
  * symbola clavium — ASCII ubi possibile
@@ -180,10 +182,19 @@ typedef struct pfr_eventus_rota {
     int y;
 } pfr_eventus_rota_t;
 
+typedef struct pfr_eventus_muris {
+    pfr_u32 typus;
+    pfr_u32 tempus;
+    int x;              /* positio in fenestra */
+    int y;
+    int plectrum;       /* 1=sinister, 2=medius, 3=dexter */
+} pfr_eventus_muris_t;
+
 typedef union pfr_eventus {
     pfr_u32                typus;
     pfr_eventus_clavis_t   clavis;
     pfr_eventus_rota_t     rota;
+    pfr_eventus_muris_t    muris;
 } pfr_eventus_t;
 
 /* ================================================================
@@ -245,6 +256,10 @@ int  pfr_rectum_imple(pfr_pictor_t *p, const pfr_rectum_t *rect);
 
 int             pfr_eventum_lege(pfr_eventus_t *e);
 const pfr_u8   *pfr_claves_status(int *numerus);
+
+/* --- muris --- */
+
+void     pfr_muris_positio(int *x, int *y);
 
 /* --- tempus --- */
 

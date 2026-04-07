@@ -35,6 +35,10 @@ static struct {
     /* status clavium */
     pfr_u8 claves[PFR_SC_NUMERUS];
 
+    /* positio muris */
+    int muris_x;
+    int muris_y;
+
     /* X11 */
     Display *exhibitio;
     Atom wm_dele;
@@ -186,7 +190,7 @@ pfr_fenestra_t *pfr_fenestram_crea(
     XSelectInput(
         ph.exhibitio, f->x_fenestra,
         ExposureMask | KeyPressMask | KeyReleaseMask
-        | ButtonPressMask | StructureNotifyMask
+        | ButtonPressMask | PointerMotionMask | StructureNotifyMask
     );
 
     XSetWMProtocols(ph.exhibitio, f->x_fenestra, &ph.wm_dele, 1);
@@ -326,8 +330,9 @@ static void x11_eventum_convertere(XEvent *xe)
         coda_insere(&se);
     }
 
-    /* rota muris: Button4 = sursum, Button5 = deorsum */
+    /* muris */
     if (xe->type == ButtonPress) {
+        /* rota: Button4 = sursum, Button5 = deorsum */
         if (xe->xbutton.button == 4 || xe->xbutton.button == 5) {
             pfr_eventus_t se;
             memset(&se, 0, sizeof(se));
@@ -336,6 +341,28 @@ static void x11_eventum_convertere(XEvent *xe)
             se.rota.y     = (xe->xbutton.button == 4) ? 1 : -1;
             coda_insere(&se);
         }
+        /* plectra 1-3 */
+        if (xe->xbutton.button >= 1 && xe->xbutton.button <= 3) {
+            int mx = xe->xbutton.x;
+            int my = xe->xbutton.y;
+            ph.muris_x = mx;
+            ph.muris_y = my;
+            pfr_eventus_t se;
+            memset(&se, 0, sizeof(se));
+            se.typus          = PFR_MURIS_INF;
+            se.muris.typus    = PFR_MURIS_INF;
+            se.muris.tempus   = pfr_tempus();
+            se.muris.x        = mx;
+            se.muris.y        = my;
+            se.muris.plectrum = (int)xe->xbutton.button;
+            coda_insere(&se);
+        }
+    }
+
+    /* motus muris */
+    if (xe->type == MotionNotify) {
+        ph.muris_x = xe->xmotion.x;
+        ph.muris_y = xe->xmotion.y;
     }
 
     /* fenestra clausa */
