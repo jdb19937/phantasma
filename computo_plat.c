@@ -26,11 +26,12 @@ int pfr_attentio_f(
     float *att,
     int d, int n_capita, int n_capita_kv,
     int positio, int longitudo_max
-)
-{ return pfr_cpu_attentio_f(
-    o, q, cache_k, cache_v, att, d, n_capita,
-    n_capita_kv, positio, longitudo_max
-); }
+) {
+    return pfr_cpu_attentio_f(
+        o, q, cache_k, cache_v, att, d, n_capita,
+        n_capita_kv, positio, longitudo_max
+    );
+}
 
 
 #if defined(__APPLE__) && !defined(PHANTASMA_X11) && !defined(PFR_COMPUTO_CPU)
