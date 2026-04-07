@@ -87,6 +87,14 @@ proba_nn: $(BIBLIOTHECA) nexus_phantasma proba_nn.o
 proba_nn.o: proba_nn.c $(CAPITA)
 	$(CC) $(CFLAGS) -pedantic -std=c99 -c proba_nn.c -o proba_nn.o
 
+PREFIX = /opt/apotheca
+
+colloca: omnia
+	install -d $(PREFIX)/lib $(PREFIX)/include/phantasma
+	install -m 644 $(BIBLIOTHECA) $(PREFIX)/lib/
+	install -m 644 nexus_phantasma $(PREFIX)/lib/
+	install -m 644 phantasma.h computo.h quantisatio.h perturbatio.h $(PREFIX)/include/phantasma/
+
 purga:
 	rm -f $(OBJECTA) $(BIBLIOTHECA) nexus_phantasma \
 	    proba.o proba proba_computo.o proba_computo \
@@ -97,4 +105,4 @@ purga:
 linte:
 	insinulint -c *.c *.h
 
-.PHONY: omnia proba proba_computo proba_mp4 proba_gif proba_nn purga linte
+.PHONY: omnia colloca proba proba_computo proba_mp4 proba_gif proba_nn purga linte
