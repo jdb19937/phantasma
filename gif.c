@@ -20,8 +20,11 @@
  * ================================================================ */
 
 #define PALETA_MAG      128     /* numerus colorum in paleta */
+#define PALETA_OPACA    127     /* colores opaci (ultimus = pellucidus) */
+#define INDEX_PELLUC    127     /* index coloris pellucidi in paleta */
 #define PALETA_POTENTIA   7     /* 2^7 = 128 */
 #define LZW_MIN_MAG      7     /* minimum code size (2^7 entries) */
+#define LIMEN_ALPHA     128     /* alpha < hoc = pellucidus */
 #define LZW_MAX_CODEX  4096
 #define LZW_HASH_MAG   5003    /* primus > 4096 */
 
@@ -40,6 +43,7 @@ struct pfr_gif {
     int numerus;
     int modus_quant;
     int modus_dither;
+    int habet_pelluc;
 };
 
 /* ================================================================
@@ -264,14 +268,21 @@ int pfr_gif_tabulam_adde(pfr_gif_t *g, const uint32_t *pixels)
 
     int n_pix = g->lat * g->alt;
 
-    /* scala et converte ARGB -> RGB */
+    /* scala et converte ARGB -> RGB, nota pixelos pellucidos */
     uint8_t *rgb = (uint8_t *)malloc((size_t)n_pix * 3);
     if (!rgb)
         return -1;
+    uint8_t *pelluc = (uint8_t *)calloc((size_t)n_pix, 1);
+    if (!pelluc) {
+        free(rgb);
+        return -1;
+    }
+
+    int habet_pelluc = 0;
 
     for (int y = 0; y < g->alt; y++) {
         for (int x = 0; x < g->lat; x++) {
-            int r_sum = 0, g_sum = 0, b_sum = 0;
+            int r_sum = 0, g_sum = 0, b_sum = 0, a_sum = 0;
             int cnt   = 0;
             for (int sy = 0; sy < g->scala; sy++) {
                 int fy = y * g->scala + sy;
@@ -282,6 +293,7 @@ int pfr_gif_tabulam_adde(pfr_gif_t *g, const uint32_t *pixels)
                     if (fx >= g->lat_fons)
                         continue;
                     uint32_t px = pixels[fy * g->lat_fons + fx];
+                    a_sum += (px >> 24) & 0xFF;
                     r_sum += (px >> 16) & 0xFF;
                     g_sum += (px >> 8)  & 0xFF;
                     b_sum +=  px        & 0xFF;
@@ -289,50 +301,122 @@ int pfr_gif_tabulam_adde(pfr_gif_t *g, const uint32_t *pixels)
                 }
             }
             if (cnt > 0) {
-                int idx      = (y * g->lat + x) * 3;
-                rgb[idx + 0] = (uint8_t)(r_sum / cnt);
-                rgb[idx + 1] = (uint8_t)(g_sum / cnt);
-                rgb[idx + 2] = (uint8_t)(b_sum / cnt);
+                int pi    = y * g->lat + x;
+                int idx   = pi * 3;
+                int a_med = a_sum / cnt;
+                if (a_med < LIMEN_ALPHA) {
+                    pelluc[pi]   = 1;
+                    habet_pelluc = 1;
+                    rgb[idx + 0] = 0;
+                    rgb[idx + 1] = 0;
+                    rgb[idx + 2] = 0;
+                } else {
+                    rgb[idx + 0] = (uint8_t)(r_sum / cnt);
+                    rgb[idx + 1] = (uint8_t)(g_sum / cnt);
+                    rgb[idx + 2] = (uint8_t)(b_sum / cnt);
+                }
             }
         }
     }
 
-    /* genera paletam ex prima tabula */
+    /* numera pixelos opacos pro quantisatione */
+    int n_opaci = 0;
+    for (int i = 0; i < n_pix; i++)
+        if (!pelluc[i])
+            n_opaci++;
+
+    /* genera paletam ex prima tabula (solum pixeli opaci) */
     if (!g->paleta_parata) {
-        switch (g->modus_quant) {
-        case PFR_QUANT_OCTARBORIS:
-            paletam_genera_octarboris(rgb, n_pix, g->paleta, PALETA_MAG);
-            break;
-        case PFR_QUANT_KMEDIA:
-            paletam_genera_kmedia(rgb, n_pix, g->paleta, PALETA_MAG);
-            break;
-        default:
-            paletam_genera(rgb, n_pix, g->paleta, PALETA_MAG);
-            break;
+        int n_quant = habet_pelluc ? PALETA_OPACA : PALETA_MAG;
+        if (n_opaci > 0) {
+            /* collige pixelos opacos */
+            uint8_t *rgb_opaci = (uint8_t *)malloc((size_t)n_opaci * 3);
+            if (rgb_opaci) {
+                int pos = 0;
+                for (int i = 0; i < n_pix; i++) {
+                    if (!pelluc[i]) {
+                        rgb_opaci[pos * 3 + 0] = rgb[i * 3 + 0];
+                        rgb_opaci[pos * 3 + 1] = rgb[i * 3 + 1];
+                        rgb_opaci[pos * 3 + 2] = rgb[i * 3 + 2];
+                        pos++;
+                    }
+                }
+                switch (g->modus_quant) {
+                case PFR_QUANT_OCTARBORIS:
+                    paletam_genera_octarboris(
+                        rgb_opaci, n_opaci, g->paleta, n_quant
+                    );
+                    break;
+                case PFR_QUANT_KMEDIA:
+                    paletam_genera_kmedia(
+                        rgb_opaci, n_opaci, g->paleta, n_quant
+                    );
+                    break;
+                default:
+                    paletam_genera(
+                        rgb_opaci, n_opaci, g->paleta, n_quant
+                    );
+                    break;
+                }
+                free(rgb_opaci);
+            } else {
+                switch (g->modus_quant) {
+                case PFR_QUANT_OCTARBORIS:
+                    paletam_genera_octarboris(
+                        rgb, n_pix, g->paleta, n_quant
+                    );
+                    break;
+                case PFR_QUANT_KMEDIA:
+                    paletam_genera_kmedia(
+                        rgb, n_pix, g->paleta, n_quant
+                    );
+                    break;
+                default:
+                    paletam_genera(rgb, n_pix, g->paleta, n_quant);
+                    break;
+                }
+            }
+        }
+        /* index pellucidus: color 0,0,0 (non refert, numquam videtur) */
+        if (habet_pelluc) {
+            g->paleta[INDEX_PELLUC][0] = 0;
+            g->paleta[INDEX_PELLUC][1] = 0;
+            g->paleta[INDEX_PELLUC][2] = 0;
         }
         g->paleta_parata = 1;
+        g->habet_pelluc  = habet_pelluc;
         gif_caput_scribe(g);
     }
 
     /* converte in indices paletae */
     uint8_t *indices = (uint8_t *)malloc((size_t)n_pix);
     if (!indices) {
+        free(pelluc);
         free(rgb);
         return -1;
     }
 
+    int n_pal = g->habet_pelluc ? PALETA_OPACA : PALETA_MAG;
     switch (g->modus_dither) {
     case PFR_DITHER_FLOYD:
-        indices_floyd(rgb, g->lat, g->alt, g->paleta, PALETA_MAG, indices);
+        indices_floyd(rgb, g->lat, g->alt, g->paleta, n_pal, indices);
         break;
     case PFR_DITHER_NULLUM:
-        indices_nullum(rgb, g->lat, g->alt, g->paleta, PALETA_MAG, indices);
+        indices_nullum(rgb, g->lat, g->alt, g->paleta, n_pal, indices);
         break;
     default:
-        indices_bayer(rgb, g->lat, g->alt, g->paleta, PALETA_MAG, indices);
+        indices_bayer(rgb, g->lat, g->alt, g->paleta, n_pal, indices);
         break;
     }
 
+    /* substitue indicem pellucidi pro pixelis pellucidis */
+    if (g->habet_pelluc) {
+        for (int i = 0; i < n_pix; i++)
+            if (pelluc[i])
+                indices[i] = INDEX_PELLUC;
+    }
+
+    free(pelluc);
     free(rgb);
 
     FILE *f = g->plica;
@@ -341,9 +425,12 @@ int pfr_gif_tabulam_adde(pfr_gif_t *g, const uint32_t *pixels)
     fputc(0x21, f);
     fputc(0xF9, f);
     fputc(4, f);
-    fputc(0x08, f);     /* dispositio = 2 (restitue ad fundum), sine pelluciditate */
+    if (g->habet_pelluc)
+        fputc(0x09, f); /* dispositio = 2, cum pelluciditate */
+    else
+        fputc(0x08, f); /* dispositio = 2, sine pelluciditate */
     scribe_u16le(f, (uint16_t)g->mora_cs);
-    fputc(0, f);        /* index coloris pellucidi */
+    fputc(g->habet_pelluc ? INDEX_PELLUC : 0, f);
     fputc(0, f);        /* terminator */
 
     /* Descriptor Imaginis */

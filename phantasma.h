@@ -285,6 +285,7 @@ typedef enum {
 } pfr_dither_t;
 
 typedef struct pfr_gif pfr_gif_t;
+typedef struct pfr_gif_lector pfr_gif_lector_t;
 typedef struct pfr_mp4 pfr_mp4_t;
 
 /*
@@ -300,6 +301,19 @@ pfr_gif_t *pfr_gif_initia(
 int  pfr_gif_tabulam_adde(pfr_gif_t *g, const uint32_t *pixels);
 void pfr_gif_fini(pfr_gif_t *g);
 void pfr_gif_modum_pone(pfr_gif_t *g, pfr_quant_t quant, pfr_dither_t dither);
+
+/*
+ * pfr_gif_lege_initia — lectorem GIF aperit.
+ * pfr_gif_lege_dimensiones — dimensiones imaginis legit.
+ * pfr_gif_lege_tabulam — proximam tabulam legit in ARGB8888.
+ *   Pixeli pellucidi habent alpha=0x00, opaci alpha=0xFF.
+ *   Redit 0 si tabula lecta, -1 si finis vel error.
+ * pfr_gif_lege_fini — lectorem claudit.
+ */
+pfr_gif_lector_t *pfr_gif_lege_initia(const char *via);
+int  pfr_gif_lege_dimensiones(pfr_gif_lector_t *l, int *lat, int *alt);
+int  pfr_gif_lege_tabulam(pfr_gif_lector_t *l, uint32_t *pixels);
+void pfr_gif_lege_fini(pfr_gif_lector_t *l);
 
 /*
  * pfr_mp4_initia — inscriptorem MP4 (H.264 Baseline) creat.

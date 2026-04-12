@@ -18,7 +18,7 @@ CC      ?= cc
 AR      ?= ar
 CFLAGS  ?= -Wall -Wextra -O2
 
-OBJECTA     = phantasma.o gif.o quantisatio.o perturbatio.o mp4.o computo.o
+OBJECTA     = phantasma.o gif.o gif_lector.o quantisatio.o perturbatio.o mp4.o computo.o
 BIBLIOTHECA = libphantasma.a
 CAPITA      = phantasma.h computo.h quantisatio.h perturbatio.h
 
@@ -35,6 +35,9 @@ perturbatio.o: perturbatio.c perturbatio.h
 
 gif.o: gif.c quantisatio.h perturbatio.h $(CAPITA)
 	$(CC) $(CFLAGS) -pedantic -std=c99 -c gif.c -o gif.o
+
+gif_lector.o: gif_lector.c $(CAPITA)
+	$(CC) $(CFLAGS) -pedantic -std=c99 -c gif_lector.c -o gif_lector.o
 
 mp4.o: mp4.c $(CAPITA)
 	$(CC) $(CFLAGS) -pedantic -std=c99 -c mp4.c -o mp4.o
@@ -74,8 +77,8 @@ proba_mp4: mp4.o proba_mp4.o
 proba_mp4.o: proba_mp4.c $(CAPITA)
 	$(CC) $(CFLAGS) -pedantic -std=c99 -c proba_mp4.c -o proba_mp4.o
 
-proba_gif: gif.o quantisatio.o perturbatio.o proba_gif.o
-	$(CC) proba_gif.o gif.o quantisatio.o perturbatio.o -lm -o proba_gif
+proba_gif: gif.o gif_lector.o quantisatio.o perturbatio.o proba_gif.o
+	$(CC) proba_gif.o gif.o gif_lector.o quantisatio.o perturbatio.o -lm -o proba_gif
 proba_gif.o: proba_gif.c $(CAPITA)
 	$(CC) $(CFLAGS) -pedantic -std=c99 -c proba_gif.c -o proba_gif.o
 

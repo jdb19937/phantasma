@@ -708,6 +708,371 @@ static const char *proba_plures_octarboris(void)
 }
 
 /* ================================================================
+ * probationes pellucditatis
+ * ================================================================ */
+
+static const char *proba_pelluc_simplex(void)
+{
+    const char *via = viam_novam();
+    pfr_gif_t *g    = pfr_gif_initia(via, 4, 4, 3, 1);
+    if (!g)
+        return "initia falsum";
+
+    uint32_t pix[16];
+    /* duo pixeli pellucidi, duo opaci */
+    for (int i = 0; i < 16; i++) {
+        if (i < 8)
+            pix[i] = 0xFFFF0000;   /* rubrum opacum */
+        else
+            pix[i] = 0x00000000;   /* pellucidus */
+    }
+
+    int res = pfr_gif_tabulam_adde(g, pix);
+    pfr_gif_fini(g);
+
+    if (res != 0) {
+        plicam_dele(via);
+        return "adde falsum cum pelluciditate";
+    }
+    if (!est_gif89a(via)) {
+        plicam_dele(via);
+        return "non est GIF89a";
+    }
+
+    /* verifica GCE pelluciditatem habet */
+    FILE *f = fopen(via, "rb");
+    plicam_dele(via);
+    if (!f)
+        return "plica non aperitur";
+
+    /* quaere GCE (0x21 0xF9) */
+    int inventa = 0;
+    int c;
+    while ((c = fgetc(f)) != EOF) {
+        if (c == 0x21) {
+            int label = fgetc(f);
+            if (label == 0xF9) {
+                fgetc(f);   /* mag */
+                int packed = fgetc(f);
+                if (packed & 0x01)
+                    inventa = 1;
+                break;
+            }
+        }
+    }
+    fclose(f);
+
+    if (!inventa)
+        return "GCE pelluciditas non inventa";
+    return NULL;
+}
+
+static const char *proba_pelluc_omnes(void)
+{
+    const char *via = viam_novam();
+    pfr_gif_t *g    = pfr_gif_initia(via, 8, 8, 3, 1);
+    if (!g)
+        return "initia falsum";
+
+    /* omnes pixeli pellucidi */
+    uint32_t pix[64];
+    for (int i = 0; i < 64; i++)
+        pix[i] = 0x00000000;
+
+    int res = pfr_gif_tabulam_adde(g, pix);
+    pfr_gif_fini(g);
+    plicam_dele(via);
+
+    if (res != 0)
+        return "adde falsum cum omnibus pellucidis";
+    return NULL;
+}
+
+static const char *proba_pelluc_gradiens(void)
+{
+    const char *via = viam_novam();
+    pfr_gif_t *g    = pfr_gif_initia(via, 64, 64, 3, 1);
+    if (!g)
+        return "initia falsum";
+
+    uint32_t *pix = (uint32_t *)malloc(64 * 64 * sizeof(uint32_t));
+    if (!pix) {
+        pfr_gif_fini(g);
+        plicam_dele(via);
+        return "memoria";
+    }
+
+    /* gradiens alpha: supra opacus, infra pellucidus */
+    for (int y = 0; y < 64; y++)
+        for (int x = 0; x < 64; x++) {
+        uint32_t a      = (uint32_t)(255 - y * 4);
+        pix[y * 64 + x] = (a << 24) | 0x00FF8040;
+    }
+
+    int res = pfr_gif_tabulam_adde(g, pix);
+    free(pix);
+    pfr_gif_fini(g);
+    plicam_dele(via);
+
+    if (res != 0)
+        return "adde falsum cum gradiente alpha";
+    return NULL;
+}
+
+static const char *proba_sine_pelluc(void)
+{
+    /* imago sine pellucditate — GCE non debet pelluciditatem habere */
+    const char *via = viam_novam();
+    pfr_gif_t *g    = pfr_gif_initia(via, 4, 4, 3, 1);
+    if (!g)
+        return "initia falsum";
+
+    uint32_t pix[16];
+    for (int i = 0; i < 16; i++)
+        pix[i] = 0xFFFF0000;
+
+    pfr_gif_tabulam_adde(g, pix);
+    pfr_gif_fini(g);
+
+    FILE *f = fopen(via, "rb");
+    plicam_dele(via);
+    if (!f)
+        return "plica non aperitur";
+
+    int pelluc_inventa = 0;
+    int c;
+    while ((c = fgetc(f)) != EOF) {
+        if (c == 0x21) {
+            int label = fgetc(f);
+            if (label == 0xF9) {
+                fgetc(f);
+                int packed = fgetc(f);
+                if (packed & 0x01)
+                    pelluc_inventa = 1;
+                break;
+            }
+        }
+    }
+    fclose(f);
+
+    if (pelluc_inventa)
+        return "pelluciditas inventa in imagine opaca";
+    return NULL;
+}
+
+/* ================================================================
+ * probationes lectoris (decoder)
+ * ================================================================ */
+
+static const char *proba_lector_simplex(void)
+{
+    /* scribe GIF, deinde lege */
+    const char *via = viam_novam();
+    pfr_gif_t *g    = pfr_gif_initia(via, 4, 4, 3, 1);
+    if (!g)
+        return "initia falsum";
+
+    uint32_t pix_fons[16];
+    for (int i = 0; i < 16; i++)
+        pix_fons[i] = 0xFFFF0000;
+
+    pfr_gif_tabulam_adde(g, pix_fons);
+    pfr_gif_fini(g);
+
+    /* lege */
+    pfr_gif_lector_t *l = pfr_gif_lege_initia(via);
+    if (!l) {
+        plicam_dele(via);
+        return "lector initia falsum";
+    }
+
+    int lat, alt;
+    pfr_gif_lege_dimensiones(l, &lat, &alt);
+    if (lat != 4 || alt != 4) {
+        pfr_gif_lege_fini(l);
+        plicam_dele(via);
+        return "dimensiones falsae";
+    }
+
+    uint32_t pix_lecta[16];
+    int res = pfr_gif_lege_tabulam(l, pix_lecta);
+    if (res != 0) {
+        pfr_gif_lege_fini(l);
+        plicam_dele(via);
+        return "lege tabulam falsum";
+    }
+
+    /* verifica quod omnes pixeli sunt opaci et rubri */
+    for (int i = 0; i < 16; i++) {
+        if ((pix_lecta[i] >> 24) != 0xFF) {
+            pfr_gif_lege_fini(l);
+            plicam_dele(via);
+            return "alpha non opacus";
+        }
+        /* rubrum debet esse proximus colori originali (quantisatio) */
+        int r = (pix_lecta[i] >> 16) & 0xFF;
+        if (r < 200) {
+            pfr_gif_lege_fini(l);
+            plicam_dele(via);
+            return "color ruber non proximus";
+        }
+    }
+
+    /* secunda tabula non debet existere */
+    res = pfr_gif_lege_tabulam(l, pix_lecta);
+    if (res != -1) {
+        pfr_gif_lege_fini(l);
+        plicam_dele(via);
+        return "debet -1 reddere post ultimam tabulam";
+    }
+
+    pfr_gif_lege_fini(l);
+    plicam_dele(via);
+    return NULL;
+}
+
+static const char *proba_lector_pelluc(void)
+{
+    const char *via = viam_novam();
+    pfr_gif_t *g    = pfr_gif_initia(via, 4, 2, 3, 1);
+    if (!g)
+        return "initia falsum";
+
+    uint32_t pix_fons[8];
+    /* prima linea opaca, secunda pellucida */
+    for (int i = 0; i < 4; i++)
+        pix_fons[i] = 0xFF00FF00;   /* viridis opacus */
+    for (int i = 4; i < 8; i++)
+        pix_fons[i] = 0x00000000;   /* pellucidus */
+
+    pfr_gif_tabulam_adde(g, pix_fons);
+    pfr_gif_fini(g);
+
+    pfr_gif_lector_t *l = pfr_gif_lege_initia(via);
+    if (!l) {
+        plicam_dele(via);
+        return "lector initia falsum";
+    }
+
+    uint32_t pix_lecta[8];
+    int res = pfr_gif_lege_tabulam(l, pix_lecta);
+    if (res != 0) {
+        pfr_gif_lege_fini(l);
+        plicam_dele(via);
+        return "lege falsum";
+    }
+
+    /* verifica: prima linea opaca */
+    for (int i = 0; i < 4; i++) {
+        if ((pix_lecta[i] >> 24) != 0xFF) {
+            pfr_gif_lege_fini(l);
+            plicam_dele(via);
+            return "prima linea debet esse opaca";
+        }
+    }
+
+    /* verifica: secunda linea pellucida */
+    for (int i = 4; i < 8; i++) {
+        if ((pix_lecta[i] >> 24) != 0x00) {
+            pfr_gif_lege_fini(l);
+            plicam_dele(via);
+            return "secunda linea debet esse pellucida";
+        }
+    }
+
+    pfr_gif_lege_fini(l);
+    plicam_dele(via);
+    return NULL;
+}
+
+static const char *proba_lector_plures(void)
+{
+    const char *via = viam_novam();
+    pfr_gif_t *g    = pfr_gif_initia(via, 8, 8, 3, 1);
+    if (!g)
+        return "initia falsum";
+
+    uint32_t *pix = pixels_crea(8, 8, 0xFF0000FF);
+    if (!pix) {
+        pfr_gif_fini(g);
+        plicam_dele(via);
+        return "memoria";
+    }
+
+    for (int i = 0; i < 5; i++) {
+        for (int j = 0; j < 64; j++)
+            pix[j] = 0xFF000000 | (uint32_t)(i * 50) << 8;
+        pfr_gif_tabulam_adde(g, pix);
+    }
+    free(pix);
+    pfr_gif_fini(g);
+
+    pfr_gif_lector_t *l = pfr_gif_lege_initia(via);
+    if (!l) {
+        plicam_dele(via);
+        return "lector initia falsum";
+    }
+
+    uint32_t lecta[64];
+    int numerus = 0;
+    while (pfr_gif_lege_tabulam(l, lecta) == 0)
+        numerus++;
+
+    pfr_gif_lege_fini(l);
+    plicam_dele(via);
+
+    if (numerus != 5)
+        return "numerus tabularum falsus";
+    return NULL;
+}
+
+static const char *proba_lector_nulla(void)
+{
+    pfr_gif_lector_t *l = pfr_gif_lege_initia(NULL);
+    if (l) {
+        pfr_gif_lege_fini(l);
+        return "non debet initiari cum via nulla";
+    }
+    if (pfr_gif_lege_tabulam(NULL, NULL) != -1)
+        return "debet -1 reddere cum lectore nullo";
+    pfr_gif_lege_fini(NULL);
+    return NULL;
+}
+
+static const char *proba_lector_dimensiones(void)
+{
+    const char *via = viam_novam();
+    pfr_gif_t *g    = pfr_gif_initia(via, 100, 50, 3, 1);
+    if (!g)
+        return "initia falsum";
+
+    uint32_t *pix = pixels_crea(100, 50, 0xFF808080);
+    if (!pix) {
+        pfr_gif_fini(g);
+        plicam_dele(via);
+        return "memoria";
+    }
+    pfr_gif_tabulam_adde(g, pix);
+    free(pix);
+    pfr_gif_fini(g);
+
+    pfr_gif_lector_t *l = pfr_gif_lege_initia(via);
+    if (!l) {
+        plicam_dele(via);
+        return "lector initia falsum";
+    }
+
+    int lat = 0, alt = 0;
+    pfr_gif_lege_dimensiones(l, &lat, &alt);
+    pfr_gif_lege_fini(l);
+    plicam_dele(via);
+
+    if (lat != 100 || alt != 50)
+        return "dimensiones falsae";
+    return NULL;
+}
+
+/* ================================================================
  * principium
  * ================================================================ */
 
@@ -759,6 +1124,19 @@ int main(void)
     PROBA("mediana + nullum",      proba_mediana_nullum());
     PROBA("omnes modi (3x3)",      proba_omnes_modi());
     PROBA("plures tab octarboris", proba_plures_octarboris());
+
+    fprintf(stderr, "\n— pelluciditas —\n");
+    PROBA("pelluc simplex",        proba_pelluc_simplex());
+    PROBA("pelluc omnes",          proba_pelluc_omnes());
+    PROBA("pelluc gradiens",       proba_pelluc_gradiens());
+    PROBA("sine pelluciditate",    proba_sine_pelluc());
+
+    fprintf(stderr, "\n— lector (decoder) —\n");
+    PROBA("lector nullus",         proba_lector_nulla());
+    PROBA("lector simplex",        proba_lector_simplex());
+    PROBA("lector pellucidus",     proba_lector_pelluc());
+    PROBA("lector plures tabulae", proba_lector_plures());
+    PROBA("lector dimensiones",    proba_lector_dimensiones());
 
     fprintf(
         stderr, "\n=== Summa: %d/%d rectae",
