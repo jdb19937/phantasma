@@ -22,7 +22,7 @@ OBJECTA     = phantasma.o gif.o gif_lector.o quantisatio.o perturbatio.o mp4.o c
 BIBLIOTHECA = libphantasma.a
 CAPITA      = phantasma.h computo.h quantisatio.h perturbatio.h
 
-omnia: $(BIBLIOTHECA) nexus_phantasma
+omnia: $(BIBLIOTHECA) nexus_phantasma gif_ad_ppm
 
 phantasma.o: phantasma_plat.c phantasma_darwin.m phantasma_linux.c $(CAPITA)
 	$(CC) $(CFLAGS) `case $$(uname -s) in Darwin) echo "-x objective-c";; esac` -c phantasma_plat.c -o phantasma.o
@@ -95,10 +95,11 @@ proba_nn.o: proba_nn.c $(CAPITA)
 PREFIX = /opt/apotheca
 
 colloca: omnia
-	install -d $(PREFIX)/lib $(PREFIX)/include/phantasma
+	install -d $(PREFIX)/lib $(PREFIX)/include/phantasma $(PREFIX)/bin
 	install -m 644 $(BIBLIOTHECA) $(PREFIX)/lib/
 	install -m 644 nexus_phantasma $(PREFIX)/lib/
 	install -m 644 phantasma.h computo.h quantisatio.h perturbatio.h $(PREFIX)/include/phantasma/
+	install -m 755 gif_ad_ppm $(PREFIX)/bin/
 
 purga:
 	rm -f $(OBJECTA) $(BIBLIOTHECA) nexus_phantasma \
