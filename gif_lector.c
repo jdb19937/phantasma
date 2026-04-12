@@ -209,7 +209,7 @@ static int lzw_decomprime(
                 d.suff[d.prox_codex]      = alveus[0];
                 d.longitudo[d.prox_codex] = d.longitudo[prior] + 1;
                 d.prox_codex++;
-                if (d.prox_codex > (1 << d.mag_codis) && d.mag_codis < 12)
+                if (d.prox_codex >= (1 << d.mag_codis) && d.mag_codis < 12)
                     d.mag_codis++;
             }
         } else {
@@ -229,7 +229,7 @@ static int lzw_decomprime(
                 d.suff[d.prox_codex]      = alveus[0];
                 d.longitudo[d.prox_codex] = d.longitudo[prior] + 1;
                 d.prox_codex++;
-                if (d.prox_codex > (1 << d.mag_codis) && d.mag_codis < 12)
+                if (d.prox_codex >= (1 << d.mag_codis) && d.mag_codis < 12)
                     d.mag_codis++;
             }
         }

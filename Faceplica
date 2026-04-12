@@ -82,6 +82,11 @@ proba_gif: gif.o gif_lector.o quantisatio.o perturbatio.o proba_gif.o
 proba_gif.o: proba_gif.c $(CAPITA)
 	$(CC) $(CFLAGS) -pedantic -std=c99 -c proba_gif.c -o proba_gif.o
 
+gif_ad_ppm: gif_lector.o gif_ad_ppm.o
+	$(CC) gif_ad_ppm.o gif_lector.o -o gif_ad_ppm
+gif_ad_ppm.o: gif_ad_ppm.c $(CAPITA)
+	$(CC) $(CFLAGS) -pedantic -std=c99 -c gif_ad_ppm.c -o gif_ad_ppm.o
+
 proba_nn: $(BIBLIOTHECA) nexus_phantasma proba_nn.o
 	$(CC) proba_nn.o $(BIBLIOTHECA) `cat nexus_phantasma` -lm -o proba_nn
 proba_nn.o: proba_nn.c $(CAPITA)
@@ -100,6 +105,7 @@ purga:
 	    proba_prima.o proba_prima proba_computo.o proba_computo \
 	    proba_mp4.o proba_mp4 proba_gif.o proba_gif \
 	    proba_nn.o proba_nn \
+	    gif_ad_ppm.o gif_ad_ppm \
 	    quantisatio.o perturbatio.o
 
 linte:
