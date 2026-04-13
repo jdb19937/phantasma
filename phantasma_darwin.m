@@ -70,6 +70,17 @@ struct pfr_textura {
 };
 
 /* ================================================================
+ * hook redimensionationis — vocatur ex communia.c
+ * ================================================================ */
+
+static void pictorem_post_redimensiona(pfr_pictor_t *p)
+{
+    /* ns_visus nondum accessibilis per @class forward;
+     * alveus/lat/alt renovabuntur in pfr_praesenta per fenestram */
+    (void)p;
+}
+
+/* ================================================================
  * functiones communes (coda, textura, pictor, claves, pausa)
  * ================================================================ */
 
@@ -106,7 +117,7 @@ static int mac_ad_symbolum(NSEvent *e)
         unichar ch = [chars characterAtIndex:0];
         if (ch == 0x1B) return PFR_CL_EFFUGIUM;
         if (ch == 0x09) return PFR_CL_TABULA;
-        if (ch >= 0x20 && ch < 0x7F) return (int)ch;
+        if (ch < 0x80) return (int)ch;
         switch (ch) {
         case NSUpArrowFunctionKey:    return PFR_CL_SURSUM;
         case NSDownArrowFunctionKey:  return PFR_CL_DEORSUM;
@@ -264,6 +275,23 @@ static int mac_ad_symbolum(NSEvent *e)
     return NO;
 }
 
+- (void)windowDidResize:(NSNotification *)notif
+{
+    NSWindow *w = [notif object];
+    NSRect frame = [[w contentView] frame];
+    int lat = (int)frame.size.width;
+    int alt = (int)frame.size.height;
+
+    pfr_eventus_t se;
+    memset(&se, 0, sizeof(se));
+    se.typus             = PFR_FENESTRA_MUTATA;
+    se.fenestra.typus    = PFR_FENESTRA_MUTATA;
+    se.fenestra.tempus   = pfr_tempus();
+    se.fenestra.lat      = lat;
+    se.fenestra.alt      = alt;
+    coda_insere(&se);
+}
+
 @end
 
 /* ================================================================
@@ -326,7 +354,8 @@ pfr_fenestra_t *pfr_fenestram_crea(const char *titulus, int x, int y,
     NSRect frame = NSMakeRect(0, 0, lat, alt);
     NSUInteger stilus = NSWindowStyleMaskTitled
                       | NSWindowStyleMaskClosable
-                      | NSWindowStyleMaskMiniaturizable;
+                      | NSWindowStyleMaskMiniaturizable
+                      | NSWindowStyleMaskResizable;
 
     f->ns_fenestra = [[NSWindow alloc]
         initWithContentRect:frame
@@ -402,7 +431,15 @@ void pfr_pictorem_destrue(pfr_pictor_t *p)
 void pfr_praesenta(pfr_pictor_t *p)
 {
     if (!p || !p->fenestra) return;
-    [p->fenestra->ns_visus display];
+    PhantasmaView *v = p->fenestra->ns_visus;
+    if (!v) return;
+    /* dimensiones synchrona si pictor redimensionatus est */
+    if (v->lat != p->latitudo || v->alt != p->altitudo) {
+        v->alveus = p->alveus;
+        v->lat    = p->latitudo;
+        v->alt    = p->altitudo;
+    }
+    [v display];
 }
 
 /* ================================================================

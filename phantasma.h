@@ -57,6 +57,7 @@ typedef uint8_t  pfr_u8;
 #define PFR_ROTA_MURIS      0x04    /* rota muris */
 #define PFR_MURIS_INF       0x05    /* plectrum muris pressum (infra) */
 #define PFR_MURIS_MOTUS     0x06    /* muris motus */
+#define PFR_FENESTRA_MUTATA 0x07    /* fenestra redimensionata */
 
 /* ================================================================
  * symbola clavium — ASCII ubi possibile
@@ -190,11 +191,19 @@ typedef struct pfr_eventus_muris {
     int plectrum;       /* 1=sinister, 2=medius, 3=dexter */
 } pfr_eventus_muris_t;
 
+typedef struct pfr_eventus_fenestra {
+    pfr_u32 typus;
+    pfr_u32 tempus;
+    int lat;            /* nova latitudo */
+    int alt;            /* nova altitudo */
+} pfr_eventus_fenestra_t;
+
 typedef union pfr_eventus {
-    pfr_u32                typus;
-    pfr_eventus_clavis_t   clavis;
-    pfr_eventus_rota_t     rota;
-    pfr_eventus_muris_t    muris;
+    pfr_u32                    typus;
+    pfr_eventus_clavis_t       clavis;
+    pfr_eventus_rota_t         rota;
+    pfr_eventus_muris_t        muris;
+    pfr_eventus_fenestra_t     fenestra;
 } pfr_eventus_t;
 
 /* ================================================================
@@ -222,6 +231,7 @@ pfr_pictor_t *pfr_pictorem_crea(
     pfr_u32 flags
 );
 void          pfr_pictorem_destrue(pfr_pictor_t *p);
+int           pfr_pictorem_redimensiona(pfr_pictor_t *p, int lat, int alt);
 
 /* --- textura --- */
 

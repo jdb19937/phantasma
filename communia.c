@@ -191,6 +191,38 @@ int pfr_rectum_imple(pfr_pictor_t *p, const pfr_rectum_t *rect)
 }
 
 /* ================================================================
+ * redimensionatio pictoris
+ * ================================================================ */
+
+int pfr_pictorem_redimensiona(pfr_pictor_t *p, int lat, int alt)
+{
+    if (!p || lat < 1 || alt < 1)
+        return -1;
+    uint32_t *novus = (uint32_t *)calloc(
+        (size_t)lat * alt,
+        sizeof(uint32_t)
+    );
+    if (!novus)
+        return -1;
+
+    /* alveum veterem libera, novum pone */
+    free(p->alveus);
+    p->alveus   = novus;
+    p->latitudo = lat;
+    p->altitudo = alt;
+
+    /* fenestram et visum renova */
+    if (p->fenestra) {
+        p->fenestra->latitudo = lat;
+        p->fenestra->altitudo = alt;
+    }
+
+    /* platforma specifica — definita ante inclusionem */
+    pictorem_post_redimensiona(p);
+    return 0;
+}
+
+/* ================================================================
  * claves
  * ================================================================ */
 

@@ -77,6 +77,15 @@ struct pfr_textura {
 };
 
 /* ================================================================
+ * hook redimensionationis — vocatur ex communia.c
+ * ================================================================ */
+
+static void pictorem_post_redimensiona(pfr_pictor_t *p)
+{
+    (void)p;
+}
+
+/* ================================================================
  * functiones communes (coda, textura, pictor, claves, pausa)
  * ================================================================ */
 
@@ -314,6 +323,9 @@ static void x11_eventum_convertere(XEvent *xe)
         KeySym ks_base = XLookupKeysym(&xe->xkey, 0);
         int scancode   = x11_ad_scancodem(ks_base);
         int symbolum   = x11_ad_symbolum(ks);
+        /* characteres moderatores ex XLookupString praeferre */
+        if (alveus[0] > 0 && (alveus[0] < 0x20 || alveus[0] == 0x7f))
+            symbolum = (int)(unsigned char)alveus[0];
         int depressus  = (xe->type == KeyPress) ? 1 : 0;
 
         if (scancode > 0 && scancode < PFR_SC_NUMERUS)
@@ -363,6 +375,20 @@ static void x11_eventum_convertere(XEvent *xe)
     if (xe->type == MotionNotify) {
         ph.muris_x = xe->xmotion.x;
         ph.muris_y = xe->xmotion.y;
+    }
+
+    /* fenestra redimensionata */
+    if (xe->type == ConfigureNotify) {
+        int lat = xe->xconfigure.width;
+        int alt = xe->xconfigure.height;
+        pfr_eventus_t se;
+        memset(&se, 0, sizeof(se));
+        se.typus             = PFR_FENESTRA_MUTATA;
+        se.fenestra.typus    = PFR_FENESTRA_MUTATA;
+        se.fenestra.tempus   = pfr_tempus();
+        se.fenestra.lat      = lat;
+        se.fenestra.alt      = alt;
+        coda_insere(&se);
     }
 
     /* fenestra clausa */
