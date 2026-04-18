@@ -387,7 +387,8 @@ int pfr_gif_lege_tabulam(pfr_gif_lector_t *l, uint32_t *pixels)
             }
 
             /* elige paletam */
-            uint8_t (*pal)[3] = l->habet_lct ? l->lct : l->gct;
+            typedef uint8_t palp[3];
+            palp *pal = l->habet_lct ? l->lct : l->gct;
             int n_pal = l->habet_lct ? l->mag_lct :
                 (l->habet_gct ? l->mag_gct : 0);
 
