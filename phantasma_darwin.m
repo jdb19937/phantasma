@@ -150,6 +150,8 @@ static int mac_ad_symbolum(NSEvent *e)
 
 - (BOOL)acceptsFirstResponder { return YES; }
 - (BOOL)canBecomeKeyView      { return YES; }
+- (BOOL)isOpaque              { return YES; }
+- (BOOL)wantsDefaultClipping  { return NO; }
 - (void)keyDown:(NSEvent *)e   { (void)e; }
 - (void)keyUp:(NSEvent *)e     { (void)e; }
 
@@ -407,19 +409,27 @@ pfr_pictor_t *pfr_pictorem_crea(pfr_fenestra_t *f, int index,
     p->fenestra = f;
     p->latitudo = f->latitudo;
     p->altitudo = f->altitudo;
-    p->alveus = (uint32_t *)calloc((size_t)p->latitudo * p->altitudo,
-                                    sizeof(uint32_t));
+    /* Dūplex buffer: pictor->alveus est "back" quem caller scrībit;
+     * view->alveus est "front" quem drawRect legit. pfr_praesenta
+     * pointerōs commūtat ut drawRect spontāneus (a Cocoa) numquam
+     * alveum partially-updated videat. */
+    size_t n = (size_t)p->latitudo * p->altitudo;
+    p->alveus = (uint32_t *)calloc(n, sizeof(uint32_t));
     if (!p->alveus) { free(p); return NULL; }
-
-    f->ns_visus->alveus = p->alveus;
+    f->ns_visus->alveus = (uint32_t *)calloc(n, sizeof(uint32_t));
+    if (!f->ns_visus->alveus) {
+        free(p->alveus); free(p); return NULL;
+    }
     return p;
 }
 
 void pfr_pictorem_destrue(pfr_pictor_t *p)
 {
     if (!p) return;
-    if (p->fenestra && p->fenestra->ns_visus)
+    if (p->fenestra && p->fenestra->ns_visus) {
+        free(p->fenestra->ns_visus->alveus);
         p->fenestra->ns_visus->alveus = NULL;
+    }
     free(p->alveus);
     free(p);
 }
@@ -435,10 +445,17 @@ void pfr_praesenta(pfr_pictor_t *p)
     if (!v) return;
     /* dimensiones synchrona si pictor redimensionatus est */
     if (v->lat != p->latitudo || v->alt != p->altitudo) {
-        v->alveus = p->alveus;
+        size_t n = (size_t)p->latitudo * p->altitudo;
+        free(v->alveus);
+        v->alveus = (uint32_t *)calloc(n, sizeof(uint32_t));
         v->lat    = p->latitudo;
         v->alt    = p->altitudo;
     }
+    /* Commūtātiō pointerōrum: quod caller scrīpsit fit "front";
+     * alveus vetus caderit in pictor prō scribendō proximō. */
+    uint32_t *tmp = v->alveus;
+    v->alveus = p->alveus;
+    p->alveus = tmp;
     [v display];
 }
 
