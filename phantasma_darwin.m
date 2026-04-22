@@ -110,7 +110,7 @@ static const int mac_scancodex[128] = {
 };
 
 /* macOS NSEvent -> PFR symbolum clavis */
-static int mac_ad_symbolum(NSEvent *e)
+static int mac_ad_symbolum(const NSEvent *e)
 {
     NSString *chars = [e characters];
     if (chars && [chars length] > 0) {
@@ -463,7 +463,7 @@ void pfr_praesenta(pfr_pictor_t *p)
  * eventus
  * ================================================================ */
 
-static void mac_eventum_convertere(NSEvent *e)
+static void mac_eventum_convertere(const NSEvent *e)
 {
     NSEventType typus = [e type];
 
